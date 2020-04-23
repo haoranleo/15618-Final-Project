@@ -22,7 +22,7 @@ bool TestFineGrainedBST::compare(vector<int> vec) {
 void TestFineGrainedBST::printResult(string test_name, bool succ) {
     cout << "Test " << test_name;
     if(succ) cout << " PASSED" << endl;
-    else cout << "FAILED" << endl;
+    else cout << " FAILED" << endl;
 }
 
 
