@@ -133,3 +133,58 @@ bool TestFineGrainedBST::test_combo_2() {
     return compare({16, 12, 7, 5, 11, 8, 13, 15, 14, 55, 54, 56});
 }
 
+
+void TestFineGrainedBST::test_all_multi(unsigned int thread_num, unsigned int ops_num) {
+    this->thread_num = thread_num;
+    this->ops_num = ops_num;
+    unsigned int total_ops = thread_num * ops_num;
+    v2.resize(total_ops);
+    for(int i = 0; i < total_ops; ++i) {
+        v2[i] = i;
+    }
+    printResult("TEST_MULTI_SEARCH", test_multi_search());
+    printResult("TEST_MULTI_INSERT", test_multi_insert());
+    printResult("TEST_MULTI_DELETE", test_multi_delete());
+}
+
+
+bool TestFineGrainedBST::test_multi_search() {
+    if(!instantiateBST(v2)) return false;
+    bool result = true;
+    vector<std::future<bool>> ret(thread_num);
+    for(int tid = 0; tid < thread_num; ++tid) {
+        ret[tid] = std::async(std::launch::async, test_multi_search_helper, bst, tid * ops_num, ops_num);
+    }
+    for(int tid = 0; tid < thread_num; ++tid) {
+        result &= ret[tid].get();
+    }
+    return result;
+}
+
+
+bool TestFineGrainedBST::test_multi_insert() {
+    if(!instantiateBST(v2)) return false;
+    bool result = true;
+    vector<std::future<bool>> ret(thread_num);
+    for(int tid = 0; tid < thread_num; ++tid) {
+        ret[tid] = std::async(std::launch::async, test_multi_insert_helper, bst, (tid + thread_num) * ops_num, ops_num);
+    }
+    for(int tid = 0; tid < thread_num; ++tid) {
+        result &= ret[tid].get();
+    }
+    return result;
+}
+
+
+bool TestFineGrainedBST::test_multi_delete() {
+    if(!instantiateBST(v2)) return false;
+    bool result = true;
+    vector<std::future<bool>> ret(thread_num);
+    for(int tid = 0; tid < thread_num; ++tid) {
+        ret[tid] = std::async(std::launch::async, test_multi_delete_helper, bst, tid * ops_num, ops_num);
+    }
+    for(int tid = 0; tid < thread_num; ++tid) {
+        result &= ret[tid].get();
+    }
+    return result;
+}

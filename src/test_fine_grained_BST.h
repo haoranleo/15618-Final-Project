@@ -5,7 +5,10 @@
 #ifndef INC_15618_FINE_GRAINED_BST_TEST_FINE_GRAINED_BST_H
 #define INC_15618_FINE_GRAINED_BST_TEST_FINE_GRAINED_BST_H
 
+#include <future>
+#include <thread>
 #include "fine_grained_BST.h"
+
 
 class TestFineGrainedBST {
 public:
@@ -13,6 +16,8 @@ public:
         bst = new FineGrainedBST();
         v1 = {16, 12, 13, 7, 33, 36, 11, 88, 5, 32, 8, 15, 34, 14, 55, 56};
         v1_pre_trav = {16, 12, 7, 5, 11, 8, 13, 15, 14, 33, 32, 36, 34, 88, 55, 56};
+        thread_num = 4;
+        ops_num = 4;
     }
 
     ~TestFineGrainedBST() {
@@ -23,6 +28,12 @@ public:
      * operations of fine grained BST.
      */
     void test_all_basic();
+
+    /* Run all multi-threading tests to check the execution of all operations.
+     * @param thread_num : Number of threads to spawn during the test.
+     * @param ops_num : Number of operations each thread should do.
+     * */
+    void test_all_multi(unsigned int thread_num, unsigned int ops_num);
 private:
     FineGrainedBST *bst;
 
@@ -43,7 +54,7 @@ private:
      */
     bool compare(vector<int> vec);
 
-    /* Test data */
+    /* Basic test data */
     vector<int> v1;
     vector<int> v1_pre_trav;
 
@@ -61,8 +72,43 @@ private:
     bool test_combo_1();
     bool test_combo_2();
 
+    /* Multi-thread test data */
+    unsigned int thread_num;
+    unsigned int ops_num;
+    vector<int> v2;
+
+    /* Multi-thread test function */
+    bool test_multi_search();
+    bool test_multi_insert();
+    bool test_multi_delete();
+
+    static bool test_multi_search_helper(FineGrainedBST* bst, int start, int ops_num) {
+        bool result = true;
+        for(int i = 0; i < ops_num; ++i) {
+            result &= bst->search(start + i);
+        }
+        return result;
+    }
+
+    static bool test_multi_insert_helper(FineGrainedBST* bst, int start, int ops_num) {
+        bool result = true;
+        for(int i = 0; i < ops_num; ++i) {
+            result &= bst->insert(start + i);
+        }
+        return result;
+    }
+
+    static bool test_multi_delete_helper(FineGrainedBST* bst, int start, int ops_num) {
+        bool result = true;
+        for(int i = 0; i < ops_num; ++i) {
+            result &= bst->remove(start + i);
+        }
+        return result;
+    }
+
     /* Helper function used in test */
     void printResult(string test_name, bool succ);
+
 };
 
 #endif //INC_15618_FINE_GRAINED_BST_TEST_FINE_GRAINED_BST_H
