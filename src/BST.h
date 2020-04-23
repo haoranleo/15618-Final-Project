@@ -14,13 +14,25 @@ public:
     ~BinarySearchTree() {
         delete root;
     };
+
     // Determine whether the given value exists in the tree.
     virtual bool search(int v) = 0;
     // Insert new value into the tree.
     virtual bool insert(int v) = 0;
     // Remove value from the tree.
     virtual bool remove(int v) = 0;
+
+    // Destroy current BST and reconstruct an empty one.
+    void reinitialize();
+    // Write all nodes' value to vector in pre-traversal order
+    vector<int> trans2vec();
+
 protected:
+    // Destroy current BST
+    void destroy(TreeNode* cur);
+    // Helper function to pre-traverse the BST and write values to vector
+    void trans2vec_helper(TreeNode* cur, vector<int>& v);
+
     TreeNode* root;
 };
 

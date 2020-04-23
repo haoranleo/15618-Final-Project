@@ -6,6 +6,14 @@
 #define INC_15618_FINE_GRAINED_BST_UTILS_H
 
 #include <atomic>
+#include <iostream>
+#include <string>
+#include <vector>
+
+using std::vector;
+using std::string;
+using std::cout;
+using std::endl;
 
 // Spin lock
 class Spinlock {
@@ -31,7 +39,7 @@ public:
         lock = new Spinlock();
     }
     ~TreeNode() {
-        delete left; delete right;
+        left = nullptr; right = nullptr;
         delete lock;
     }
     int val;            // Node value
