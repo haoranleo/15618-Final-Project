@@ -82,6 +82,13 @@ private:
     bool test_multi_insert();
     bool test_multi_delete();
 
+    /* Thread routine. Single thread completes multiple search operations.
+     * @param bst : Pointer to underlying binary search tree object.
+     * @param start : Start index of number to be searched.
+     * @param ops_num : Number of operations to run.
+     * @return : true if all search tasks complete.
+     *           false if any search task fails.
+     */
     static bool test_multi_search_helper(FineGrainedBST* bst, int start, int ops_num) {
         bool result = true;
         for(int i = 0; i < ops_num; ++i) {
@@ -90,6 +97,13 @@ private:
         return result;
     }
 
+    /* Thread routine. Single thread completes multiple insert operations.
+     * @param bst : Pointer to underlying binary search tree object.
+     * @param start : Start index of number to be inserted.
+     * @param ops_num : Number of operations to run.
+     * @return : true if all insert tasks complete.
+     *           false if any insert task fails.
+     */
     static bool test_multi_insert_helper(FineGrainedBST* bst, int start, int ops_num) {
         bool result = true;
         for(int i = 0; i < ops_num; ++i) {
@@ -98,6 +112,13 @@ private:
         return result;
     }
 
+    /* Thread routine. Single thread completes multiple delete operations.
+     * @param bst : Pointer to underlying binary search tree object.
+     * @param start : Start index of number to be deleted.
+     * @param ops_num : Number of operations to run.
+     * @return : true if all delete tasks complete.
+     *           false if any delete task fails.
+     */
     static bool test_multi_delete_helper(FineGrainedBST* bst, int start, int ops_num) {
         bool result = true;
         for(int i = 0; i < ops_num; ++i) {
