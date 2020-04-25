@@ -31,7 +31,6 @@ private:
     std::atomic_flag lock_flg = ATOMIC_FLAG_INIT;
 };
 
-
 // Structure of the basic node inside BST
 class TreeNode {
 public:
@@ -48,16 +47,30 @@ public:
     Spinlock* lock;     // Sping lock
 };
 
+
 /********** Structures for lock free BST *************/
 class LFTreeNode {
 public:
+    LFTreeNode(): ready_to_replace(false) {
+        left = new LFNodeChild();
+        right = new LFNodeChild();
+    }
+    ~LFTreeNode() {
+        delete left; delete right;
+    }
+
     // Structure for key in lock free BST node
     struct LFNodeKey {
+        LFNodeKey(): modify_flg(false), value(0) {}
         bool modify_flg;  // Indicate whether the value is original one or replaced one
         int value;  // Actual value of key
     };
 
     struct LFNodeChild {
+        LFNodeChild(): intent_flg(false), delete_flg(false),
+                       promote_flg(false), null_flg(false), child(nullptr) {}
+        ~LFNodeChild() { child = nullptr; }     // Child should have been deleted in previous recursive destroy process
+
         // Flags indicate state of the edge between current node and child
         bool intent_flg;  // mark for intent
         bool delete_flg;  // mark for delete
@@ -107,7 +120,7 @@ struct StateRecord {
     LFTreeEdge p_target_edge;
 
     int target_key;
-    int p_target_key;
+    int current_key;
 
     DelMode mode;
     DelType type;
