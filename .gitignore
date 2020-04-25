@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+# IDM generated files
+*/.DS_Store
+
