@@ -13,7 +13,7 @@
 class TestFineGrainedBST {
 public:
     TestFineGrainedBST() {
-        bst = new FineGrainedBST();
+        bst = new FineGrainedBST(); // TODO: Should add function to test fine-grained BST and lock free BST respectively
         v1 = {16, 12, 13, 7, 33, 36, 11, 88, 5, 32, 8, 15, 34, 14, 55, 56};
         v1_pre_trav = {16, 12, 7, 5, 11, 8, 13, 15, 14, 33, 32, 36, 34, 88, 55, 56};
         thread_num = 4;
@@ -35,7 +35,7 @@ public:
      * */
     void test_all_multi(unsigned int thread_num, unsigned int ops_num);
 private:
-    FineGrainedBST *bst;
+    BinarySearchTree *bst;
 
     /* Construct new BST from scratch by inserting element in
      * the input vector in order.
@@ -89,7 +89,7 @@ private:
      * @return : true if all search tasks complete.
      *           false if any search task fails.
      */
-    static bool test_multi_search_helper(FineGrainedBST* bst, int start, int ops_num) {
+    static bool test_multi_search_helper(BinarySearchTree* bst, int start, int ops_num) {
         bool result = true;
         for(int i = 0; i < ops_num; ++i) {
             result &= bst->search(start + i);
@@ -104,7 +104,7 @@ private:
      * @return : true if all insert tasks complete.
      *           false if any insert task fails.
      */
-    static bool test_multi_insert_helper(FineGrainedBST* bst, int start, int ops_num) {
+    static bool test_multi_insert_helper(BinarySearchTree* bst, int start, int ops_num) {
         bool result = true;
         for(int i = 0; i < ops_num; ++i) {
             result &= bst->insert(start + i);
@@ -119,7 +119,7 @@ private:
      * @return : true if all delete tasks complete.
      *           false if any delete task fails.
      */
-    static bool test_multi_delete_helper(FineGrainedBST* bst, int start, int ops_num) {
+    static bool test_multi_delete_helper(BinarySearchTree* bst, int start, int ops_num) {
         bool result = true;
         for(int i = 0; i < ops_num; ++i) {
             result &= bst->remove(start + i);
