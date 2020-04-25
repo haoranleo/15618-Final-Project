@@ -196,3 +196,32 @@ void FineGrainedBST::delete_root() {
     cur->lock->unlock();
     delete cur;
 }
+
+
+void FineGrainedBST::reinitialize() {
+    destroy(root);
+    root = nullptr;
+}
+
+
+void FineGrainedBST::destroy(TreeNode *cur) {
+    if(!cur) return;
+    destroy(cur->left);
+    destroy(cur->right);
+    delete cur;
+}
+
+
+vector<int> FineGrainedBST::trans2vec() {
+    vector<int> res;
+    trans2vec_helper(root, res);
+    return res;
+}
+
+
+void FineGrainedBST::trans2vec_helper(TreeNode *cur, vector<int> &v) {
+    if(!cur) return;
+    v.push_back(cur->val);
+    trans2vec_helper(cur->left, v);
+    trans2vec_helper(cur->right, v);
+}
