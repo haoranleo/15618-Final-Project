@@ -5,18 +5,21 @@
 #ifndef BINARY_SEARCH_TREE_LOCK_FREE_BST_H
 #define BINARY_SEARCH_TREE_LOCK_FREE_BST_H
 
+#include <limits.h>
+
 #include "BST.h"
-#include "BST_utils.h"
 
 class LockFreeBST : public BinarySearchTree {
 public:
     LockFreeBST() {
         // Construct the sentinel nodes
-        root_r = new LFTreeNode();
-        root_s = new LFTreeNode();
-        root_t = new LFTreeNode();
+        root_r = new LFTreeNode(INT_MAX - 2);
+        root_s = new LFTreeNode(INT_MAX - 1);
+        root_t = new LFTreeNode(INT_MAX);
         root_r->right->child = root_s;
+        root_r->right->null_flg = false;
         root_s->right->child = root_t;
+        root_s->right->null_flg = false;
     }
 
     ~LockFreeBST() override {
@@ -53,6 +56,7 @@ public:
 
 private:
     LFTreeNode *root_r, *root_s, *root_t; // They are all sentinel nodes
+    SeekRecord target_record;
 
     /* Destroy current BST
      * @param cur : Pointer to the current tree node.
@@ -64,6 +68,18 @@ private:
      * @param v : Vector to store the values in BST.
      */
     void trans2vec_helper(LFTreeNode* cur, vector<int>& v);
+
+    /* Execute the seek phase required for search, insert and remove API.
+     * The seek function traverses the tree from the root node until it
+     * either finds the target key or reaches a non-binary node whose
+     * next edge to be followed points to a null node.
+     * @param target_key : Target key.
+     * @param seek_record : Structure used to record the address of the
+     *        terminated node, the address of its parent and the null
+     *        address stored in the child field of the terminal node.
+     * */
+    void seek(int target_key, SeekRecord* seek_record);
+
 };
 
 #endif //BINARY_SEARCH_TREE_LOCK_FREE_BST_H
