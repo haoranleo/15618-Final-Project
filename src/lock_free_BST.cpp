@@ -49,6 +49,45 @@ bool LockFreeBST::insert(int v) {
 
 
 bool LockFreeBST::remove(int v) {
+    // TODO: Which seek record to use?
+    StateRecord *state = new StateRecord();
+    // Initialize remove state record
+    state->target_key = v;
+    state->current_key = v;
+    state->mode = DelMode::INJECT;  // Start with inject mode
+
+    while (1) {
+        seek(state->target_key, &target_record);
+        LFTreeEdge target_edge = target_record.last_edge;
+        LFTreeEdge p_target_edge = target_record.p_last_edge;
+//        TODO: Do we still need LFNodeKey struct? steal a bit from int instead?
+//        TODO: Implement a get value for key
+//        LFNodeKey target_edge_child_key = target_edge.child->key;
+        if (state->current_key != get_value(target_edge_child_key)) {
+            // the key does not exist in the tree
+            if (state->mode == DelMode::INJECT) {
+                return false;
+            }
+            return true;
+        }
+
+        // perform appropriate action depending on the mode
+        if (state->mode == DelMode::INJECT) {
+            // store a reference to the target edge
+            state->target_edge = target_edge;
+            state->p_target_edge = p_target_edge;
+            // attempt to inject the operation at the node Inject( myState );
+//            TODO: Define the inject function
+//            inject(state);
+        }
+
+        // mode would have changed if injection was successful
+        if (state->mode != DelMode::INJECT) {
+            // check if the target node found by the seek function
+            // matches the one stored in the state record
+
+        }
+    }
     return false;
 }
 
