@@ -15,6 +15,9 @@ using std::string;
 using std::cout;
 using std::endl;
 
+
+/********** Structures for node inside BST with fine-grained locking ***********/
+
 // Spin lock
 class Spinlock {
 public:
@@ -48,56 +51,94 @@ public:
 };
 
 
-/********** Structures for lock free BST *************/
+/********** Structures used in lock free BST *************/
+
+// The following bit from the address of node key is stolen by the function
+// and used to indicate whether the key value is original one or replaced one
+#define MODIFY_BIT 1
+
+// The following bits from the address of node child is stolen by the function
+// and are used to indicate the state of the edge between current node and child.
+// The padding of the struct ensures that the lowest four bits won't be used as an address.
+#define NULL_BIT 1          // Indicate whether the address field contains a null or a non-null value
+#define INTENT_BIT 2        // Mark for intent
+#define DELETE_BIT 4        // Mark for delete
+#define PROMOTE_BIT 8       // Mark for promote
+
+#define KEY_PTR(x) (reinterpret_cast<LFTreeNode::LFNodeKey*> (x))
+#define CHILD_PTR(x) (reinterpret_cast<LFTreeNode::LFNodeChild*> (x))
+#define NODE_PTR(x) (reinterpret_cast<LFTreeNode*> (x))
+#define LNG(x) (reinterpret_cast<unsigned long> (x))
+#define BOL(x) (x != 0)
+
+#define GET_MODIFY_FLG(x) (BOL(LNG(x) & MODIFY_BIT))
+#define SET_MODIFY_FLG(x) ((x) = KEY_PTR(LNG(x) | MODIFY_BIT))
+#define RESET_MODIFY_FLG(x) ((x) = KEY_PTR(LNG(x) & (~MODIFY_BIT)))
+#define WITH_MODIFY_FLG(x) (KEY_PTR(LNG(x) | MODIFY_BIT))
+
+#define GET_NULL_FLG(x) (BOL(LNG(x) & NULL_BIT))
+#define GET_INTENT_FLG(x) (BOL(LNG(x) & INTENT_BIT))
+#define GET_DELETE_FLG(x) (BOL(LNG(x) & DELETE_BIT))
+#define GET_PROMOTE_FLG(x) (BOL(LNG(x) & PROMOTE_BIT))
+
+#define SET_NULL_FLG(x) ((x) = CHILD_PTR(LNG(x) | NULL_BIT))
+#define SET_INTENT_FLG(x) ((x) = CHILD_PTR(LNG(x) | INTENT_BIT))
+#define SET_DELETE_FLG(x) ((x) = CHILD_PTR(LNG(x) | DELETE_BIT))
+#define SET_PROMOTE_FLG(x) ((x) = CHILD_PTR(LNG(x) | PROMOTE_BIT))
+
+#define RESET_NULL_FLG(x) ((x) = CHILD_PTR(LNG(x) & (~NULL_BIT)))
+#define RESET_INTENT_FLG(x) ((x) = CHILD_PTR(LNG(x) & (~INTENT_BIT)))
+#define RESET_DELETE_FLG(x) ((x) = CHILD_PTR(LNG(x) & (~DELETE_BIT)))
+#define RESET_PROMOTE_FLG(x) ((x) = CHILD_PTR(LNG(x) & (~PROMOTE_BIT)))
+
+#define WITH_NULL_FLG(x) (CHILD_PTR(LNG(x) | NULL_BIT))
+#define WITH_INTENT_FLG(x) (CHILD_PTR(LNG(x) | INTENT_BIT))
+#define WITH_DELETE_FLG(x) (CHILD_PTR(LNG(x) | DELETE_BIT))
+#define WITH_PROMOTE_FLG(x) (CHILD_PTR(LNG(x) | PROMOTE_BIT))
+
+#define GET_KEY_ADDR(x) (KEY_PTR(LNG(x) & (~MODIFY_BIT)))
+#define GET_CHILD_ADDR(x) (CHILD_PTR(LNG(x) & (~(NULL_BIT | INTENT_BIT | DELETE_BIT | PROMOTE_BIT))))
+
+#define GET_KEY_VAL(x) (GET_KEY_ADDR(x)->value)
+#define GET_CHILD_NODE(x) (NODE_PTR(GET_CHILD_ADDR(x)->child))
+
 class LFTreeNode {
 public:
     LFTreeNode(): ready_to_replace(false) {
+        key = new LFNodeKey();
         left = new LFNodeChild();
+        SET_NULL_FLG(left);
         right = new LFNodeChild();
+        SET_NULL_FLG(right);
     }
 
     explicit LFTreeNode(int v): LFTreeNode() {
-        key.value = v;
+        key->value = v;
     }
 
     ~LFTreeNode() {
+        delete key;
         delete left; delete right;
     }
 
     // Structure for key in lock free BST node
     struct LFNodeKey {
-        LFNodeKey(): modify_flg(false), value(0) {}
-        bool modify_flg;  // Indicate whether the value is original one or replaced one
+        LFNodeKey() = default;
         int value;  // Actual value of key
+        const void* padding;    // Used to ensure that the address of any LFNodeChild won't use the lowest four bits
     };
 
     struct LFNodeChild {
-        LFNodeChild(): intent_flg(false), delete_flg(false),
-                       promote_flg(false), null_flg(true), child(nullptr) {}
-        LFNodeChild(LFTreeNode* node, bool n_flg): LFNodeChild() {
-            null_flg = n_flg;
-            child = node;
-        }
+        LFNodeChild(): child(nullptr), padding(nullptr) {}
+        explicit LFNodeChild(LFTreeNode* node): child(node), padding(nullptr) {}
         ~LFNodeChild() { child = nullptr; }     // Child should have been deleted in previous recursive destroy process
 
-        // Flags indicate state of the edge between current node and child
-        bool intent_flg;  // mark for intent
-        bool delete_flg;  // mark for delete
-        bool promote_flg;  // mark for promote
-
-        bool null_flg;  // indicate whether the address field contains a null or a non-null value
-
         LFTreeNode *child;
-
-        // Overloaded operator ==
-        bool operator==(const LFNodeChild& l) {
-            return intent_flg == l.intent_flg && delete_flg == l.delete_flg && promote_flg == l.promote_flg
-            && null_flg == l.null_flg && child == l.child;
-        }
+        const void* padding;      // Used to ensure that the address of any LFNodeChild won't use the lowest four bits
     };
 
     // Data in tree node
-    LFNodeKey key;
+    LFNodeKey* key;
     LFNodeChild* left;
     LFNodeChild* right;
     bool ready_to_replace;
