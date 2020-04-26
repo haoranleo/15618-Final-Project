@@ -69,7 +69,7 @@ public:
 #define CHILD_PTR(x) (reinterpret_cast<LFTreeNode::LFNodeChild*> (x))
 #define NODE_PTR(x) (reinterpret_cast<LFTreeNode*> (x))
 #define LNG(x) (reinterpret_cast<unsigned long> (x))
-#define BOL(x) (x != 0)
+#define BOL(x) (LNG(x) != 0)
 
 #define GET_MODIFY_FLG(x) (BOL(LNG(x) & MODIFY_BIT))
 #define SET_MODIFY_FLG(x) ((x) = KEY_PTR(LNG(x) | MODIFY_BIT))
