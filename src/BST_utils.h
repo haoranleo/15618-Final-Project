@@ -125,7 +125,6 @@ public:
     struct LFNodeKey {
         LFNodeKey() = default;
         int value;  // Actual value of key
-        const void* padding;    // Used to ensure that the address of any LFNodeChild won't use the lowest four bits
     };
 
     struct LFNodeChild {
