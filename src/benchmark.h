@@ -15,7 +15,7 @@
 using std::thread;
 
 class Benchmark {
-    Benchmark(int size): init_tree_size(size), bst(nullptr) {}
+    explicit Benchmark(int size): init_tree_size(size), bst(nullptr) {}
     ~Benchmark() {
         if(!bst) return;
         FineGrainedBST* fg_bst = dynamic_cast<FineGrainedBST*> (bst);
