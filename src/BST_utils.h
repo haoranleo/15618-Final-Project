@@ -55,6 +55,11 @@ public:
         left = new LFNodeChild();
         right = new LFNodeChild();
     }
+
+    explicit LFTreeNode(int v): LFTreeNode() {
+        key.value = v;
+    }
+
     ~LFTreeNode() {
         delete left; delete right;
     }
@@ -68,7 +73,11 @@ public:
 
     struct LFNodeChild {
         LFNodeChild(): intent_flg(false), delete_flg(false),
-                       promote_flg(false), null_flg(false), child(nullptr) {}
+                       promote_flg(false), null_flg(true), child(nullptr) {}
+        LFNodeChild(LFTreeNode* node, bool n_flg): LFNodeChild() {
+            null_flg = n_flg;
+            child = node;
+        }
         ~LFNodeChild() { child = nullptr; }     // Child should have been deleted in previous recursive destroy process
 
         // Flags indicate state of the edge between current node and child
@@ -79,6 +88,12 @@ public:
         bool null_flg;  // indicate whether the address field contains a null or a non-null value
 
         LFTreeNode *child;
+
+        // Overloaded operator ==
+        bool operator==(const LFNodeChild& l) {
+            return intent_flg == l.intent_flg && delete_flg == l.delete_flg && promote_flg == l.promote_flg
+            && null_flg == l.null_flg && child == l.child;
+        }
     };
 
     // Data in tree node
@@ -89,10 +104,12 @@ public:
 };
 
 // Indicate whether an edge is a left or right edge of parent node
-enum EdgeType { LEFT, RIGHT };
+enum EdgeType { LEFT, RIGHT, INIT };
 
 // Structure for lock free tree edges
 struct LFTreeEdge {
+    LFTreeEdge(): parent(nullptr), child(nullptr), type(EdgeType::INIT) {}
+    LFTreeEdge(LFTreeNode* p, LFTreeNode* c, EdgeType t): parent(p), child(c), type(t) {}
     LFTreeNode *parent;  // Parent node
     LFTreeNode *child;  // Child node
     EdgeType type;
@@ -100,6 +117,7 @@ struct LFTreeEdge {
 
 // Record for seek phase
 struct SeekRecord {
+    SeekRecord() = default;
     LFTreeEdge last_edge;
     LFTreeEdge p_last_edge;
     LFTreeEdge inject_edge;
@@ -107,8 +125,15 @@ struct SeekRecord {
 
 // Record for anchor node
 struct AnchorRecord {
+    AnchorRecord(LFTreeNode* n, int v): node(n), key_val(v) {}
+    ~AnchorRecord() { node = nullptr; }
     LFTreeNode* node;
     int key_val;
+
+    // Overloaded operator ==
+    bool operator==(const AnchorRecord& a) {
+        return (node == a.node && key_val == a.key_val);
+    }
 };
 
 enum DelMode { INJECT, DISCOVERY, CLEANUP };
