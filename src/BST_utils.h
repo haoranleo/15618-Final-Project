@@ -65,8 +65,7 @@ public:
 #define DELETE_BIT 4        // Mark for delete
 #define PROMOTE_BIT 8       // Mark for promote
 
-#define KEY_PTR(x) (reinterpret_cast<LFTreeNode::LFNodeKey*> (x))
-#define CHILD_PTR(x) (reinterpret_cast<LFTreeNode::LFNodeChild*> (x))
+#define KEY_PTR(x) (reinterpret_cast<int*> (x))
 #define NODE_PTR(x) (reinterpret_cast<LFTreeNode*> (x))
 #define LNG(x) (reinterpret_cast<unsigned long> (x))
 #define BOL(x) (LNG(x) != 0)
@@ -81,65 +80,66 @@ public:
 #define GET_DELETE_FLG(x) (BOL(LNG(x) & DELETE_BIT))
 #define GET_PROMOTE_FLG(x) (BOL(LNG(x) & PROMOTE_BIT))
 
-#define SET_NULL_FLG(x) ((x) = CHILD_PTR(LNG(x) | NULL_BIT))
-#define SET_INTENT_FLG(x) ((x) = CHILD_PTR(LNG(x) | INTENT_BIT))
-#define SET_DELETE_FLG(x) ((x) = CHILD_PTR(LNG(x) | DELETE_BIT))
-#define SET_PROMOTE_FLG(x) ((x) = CHILD_PTR(LNG(x) | PROMOTE_BIT))
+#define SET_NULL_FLG(x) ((x) = NODE_PTR(LNG(x) | NULL_BIT))
+#define SET_INTENT_FLG(x) ((x) = NODE_PTR(LNG(x) | INTENT_BIT))
+#define SET_DELETE_FLG(x) ((x) = NODE_PTR(LNG(x) | DELETE_BIT))
+#define SET_PROMOTE_FLG(x) ((x) = NODE_PTR(LNG(x) | PROMOTE_BIT))
 
-#define RESET_NULL_FLG(x) ((x) = CHILD_PTR(LNG(x) & (~NULL_BIT)))
-#define RESET_INTENT_FLG(x) ((x) = CHILD_PTR(LNG(x) & (~INTENT_BIT)))
-#define RESET_DELETE_FLG(x) ((x) = CHILD_PTR(LNG(x) & (~DELETE_BIT)))
-#define RESET_PROMOTE_FLG(x) ((x) = CHILD_PTR(LNG(x) & (~PROMOTE_BIT)))
+#define RESET_NULL_FLG(x) ((x) = NODE_PTR(LNG(x) & (~NULL_BIT)))
+#define RESET_INTENT_FLG(x) ((x) = NODE_PTR(LNG(x) & (~INTENT_BIT)))
+#define RESET_DELETE_FLG(x) ((x) = NODE_PTR(LNG(x) & (~DELETE_BIT)))
+#define RESET_PROMOTE_FLG(x) ((x) = NODE_PTR(LNG(x) & (~PROMOTE_BIT)))
 
-#define WITH_NULL_FLG(x) (CHILD_PTR(LNG(x) | NULL_BIT))
-#define WITH_INTENT_FLG(x) (CHILD_PTR(LNG(x) | INTENT_BIT))
-#define WITH_DELETE_FLG(x) (CHILD_PTR(LNG(x) | DELETE_BIT))
-#define WITH_PROMOTE_FLG(x) (CHILD_PTR(LNG(x) | PROMOTE_BIT))
+#define WITH_NULL_FLG(x) (NODE_PTR(LNG(x) | NULL_BIT))
+#define WITH_INTENT_FLG(x) (NODE_PTR(LNG(x) | INTENT_BIT))
+#define WITH_DELETE_FLG(x) (NODE_PTR(LNG(x) | DELETE_BIT))
+#define WITH_PROMOTE_FLG(x) (NODE_PTR(LNG(x) | PROMOTE_BIT))
 
 #define GET_KEY_ADDR(x) (KEY_PTR(LNG(x) & (~MODIFY_BIT)))
-#define GET_CHILD_ADDR(x) (CHILD_PTR(LNG(x) & (~(NULL_BIT | INTENT_BIT | DELETE_BIT | PROMOTE_BIT))))
+#define GET_NODE_ADDR(x) (NODE_PTR(LNG(x) & (~(NULL_BIT | INTENT_BIT | DELETE_BIT | PROMOTE_BIT))))
 
-#define GET_KEY_VAL(x) (GET_KEY_ADDR(x)->value)
-#define GET_CHILD_NODE(x) (NODE_PTR(GET_CHILD_ADDR(x)->child))
+#define GET_KEY_VAL(x) (*GET_KEY_ADDR(GET_NODE_ADDR(x)->key))
+#define GET_LEFT_CHILD(x) (NODE_PTR(GET_NODE_ADDR(x)->left))
+#define GET_RIGHT_CHILD(x) (NODE_PTR(GET_NODE_ADDR(x)->right))
 
 class LFTreeNode {
 public:
     LFTreeNode(): ready_to_replace(false) {
-        key = new LFNodeKey();
-        left = new LFNodeChild();
+        key = new int();
+        left = nullptr;
         SET_NULL_FLG(left);
-        right = new LFNodeChild();
+        right = nullptr;
         SET_NULL_FLG(right);
     }
 
     explicit LFTreeNode(int v): LFTreeNode() {
-        key->value = v;
+        *key = v;
     }
 
     ~LFTreeNode() {
         delete key;
-        delete left; delete right;
+        left = nullptr; right = nullptr;
     }
 
-    // Structure for key in lock free BST node
-    struct LFNodeKey {
-        LFNodeKey() = default;
-        int value;  // Actual value of key
-    };
-
-    struct LFNodeChild {
-        LFNodeChild(): child(nullptr), padding(nullptr) {}
-        explicit LFNodeChild(LFTreeNode* node): child(node), padding(nullptr) {}
-        ~LFNodeChild() { child = nullptr; }     // Child should have been deleted in previous recursive destroy process
-
-        LFTreeNode *child;
-        const void* padding;      // Used to ensure that the address of any LFNodeChild won't use the lowest four bits
-    };
+//    // Structure for key in lock free BST node
+//    struct LFNodeKey {
+//        LFNodeKey() = default;
+//        int value;  // Actual value of key
+//    };
+//
+//    struct LFNodeChild {
+//        LFNodeChild(): child(nullptr), padding(nullptr) {}
+//        explicit LFNodeChild(LFTreeNode* node): child(node), padding(nullptr) {}
+//        ~LFNodeChild() { child = nullptr; }     // Child should have been deleted in previous recursive destroy process
+//
+//        LFTreeNode *child;
+//        const void* padding;      // Used to ensure that the address of any LFNodeChild won't use the lowest four bits
+//    };
 
     // Data in tree node
-    LFNodeKey* key;
-    LFNodeChild* left;
-    LFNodeChild* right;
+    int* key;
+    LFTreeNode* left;
+    LFTreeNode* right;
     bool ready_to_replace;
 };
 
