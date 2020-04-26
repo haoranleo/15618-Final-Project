@@ -14,8 +14,8 @@
 bool LockFreeBST::search(int v) {
     SeekRecord seek_record;
     seek(v, &seek_record);
-//    cout << seek_record.last_edge.child->key.value << endl;
-    if(seek_record.last_edge.child->key.value == v) return true;
+    cout << GET_KEY_VAL(seek_record.last_edge.child->key) << endl;
+    if(GET_KEY_VAL(seek_record.last_edge.child->key) == v) return true;
     return false;
 }
 
@@ -25,18 +25,20 @@ bool LockFreeBST::insert(int v) {
     seek(v, &target_record);
     LFTreeEdge target_edge = target_record.last_edge;
     LFTreeNode* node = target_edge.child;
-    if(node->key.value == v) return false;  // Exists duplicate node
+    if(GET_KEY_VAL(node->key) == v) return false;  // Exists duplicate node
 
     // Create new node
-    EdgeType which_edge  = target_record.inject_edge.type;
-    LFTreeNode::LFNodeChild old_child(target_record.inject_edge.child, true);
-    LFTreeNode::LFNodeChild new_child(new LFTreeNode(v), false);
-//    LFTreeNode::LFNodeChild* new_child = new LFTreeNode::LFNodeChild(new LFTreeNode(v), false);
-    LFTreeNode::LFNodeChild* target_addr = which_edge == EdgeType::LEFT ? node->left : node->right;
-//    LFTreeNode::LFNodeChild** target_addr = which_edge == EdgeType::LEFT ? &node->left : &node->right;
-    // TODO: implement CAS here (double)
-//    bool result = __sync_bool_compare_and_swap(target_addr, old_child, new_child);
-    return true;
+    EdgeType which_edge = target_record.inject_edge.type;
+    LFTreeNode::LFNodeChild* old_child = new LFTreeNode::LFNodeChild(target_record.inject_edge.child);
+    SET_NULL_FLG(old_child);
+    LFTreeNode::LFNodeChild* new_child = new LFTreeNode::LFNodeChild(new LFTreeNode(v));
+    LFTreeNode::LFNodeChild** target_addr = which_edge == EdgeType::LEFT ? &node->left : &node->right;
+    bool result = __sync_bool_compare_and_swap(target_addr, old_child, new_child);
+    if(result) {
+        cout << "succ insert " << v << endl;
+        return true;
+    }
+    cout << "fail to insert " << v << endl;
     // TODO: helper function
     return false;
 }
@@ -48,23 +50,23 @@ bool LockFreeBST::remove(int v) {
 
 
 void LockFreeBST::seek(int target_key, SeekRecord *seek_record) {
-    AnchorRecord prev_anchor_record(root_s, root_s->key.value);
+    AnchorRecord prev_anchor_record(root_s, GET_KEY_VAL(root_s->key));
     SeekRecord p_seek_record;
     while(true) {
         // Initialize all variables used in traversal
         LFTreeEdge p_last_edge(root_r, root_s, EdgeType::RIGHT);
         LFTreeEdge last_edge(root_s, root_t, EdgeType::RIGHT);
         LFTreeNode *cur = root_t;
-        AnchorRecord anchor_record(root_s, root_s->key.value);
+        AnchorRecord anchor_record(root_s, GET_KEY_VAL(root_s->key));
 
         while(true) {
-            int cur_key = cur->key.value;
+            int cur_key = GET_KEY_VAL(cur->key);
             EdgeType which_edge = target_key > cur_key ? EdgeType::RIGHT : EdgeType::LEFT;
-            LFTreeNode::LFNodeChild* child = (which_edge == EdgeType::LEFT ? cur->left : cur->right);
-            LFTreeNode *next = child->child;
+            LFTreeNode::LFNodeChild* raw_child = which_edge == EdgeType::LEFT ? cur->left : cur->right;
+            LFTreeNode *next = GET_CHILD_NODE(raw_child);
 
             // If either key found or no next edge to follow, stop the traversal
-            if(cur_key == target_key || child->null_flg) {
+            if(cur_key == target_key || GET_NULL_FLG(raw_child)) {
                 seek_record->p_last_edge = p_last_edge;
                 seek_record->last_edge = last_edge;
                 seek_record->inject_edge = LFTreeEdge(cur, next, which_edge);
@@ -86,9 +88,10 @@ void LockFreeBST::seek(int target_key, SeekRecord *seek_record) {
 
         // Key was not found; check if can stop
         LFTreeNode* anchor_node = anchor_record.node;
-        if(!anchor_node->right->delete_flg && !anchor_node->right->promote_flg) {
+        cout << anchor_node->right << endl;
+        if(!GET_DELETE_FLG(anchor_node->right) && !GET_PROMOTE_FLG(anchor_node->right)) {
             // The anchor node is still part of the tree; check if the anchor node’s key has changed
-            if(anchor_record.key_val == anchor_node->key.value) return;
+            if(anchor_record.key_val == GET_KEY_VAL(anchor_node->key)) return;
         } else {
             // Check if the anchor record (the node and its key) matches that of the previous traversal
             if(prev_anchor_record == anchor_record) {
