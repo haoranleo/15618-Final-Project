@@ -42,7 +42,68 @@ bool LockFreeBST::insert(int v) {
 
 
 bool LockFreeBST::remove(int v) {
-    return false;
+    int nkey = 0;
+    StateRecord *state = new StateRecord();
+    // Initialize remove state record
+    state->target_key = v;
+    state->current_key = v;
+    state->mode = DelMode::INJECT;  // Start with inject mode
+
+    while (true) {
+        seek(state->target_key, &target_record);
+        LFTreeEdge target_edge = target_record.last_edge;
+        LFTreeEdge p_target_edge = target_record.p_last_edge;
+        nkey = *(GET_KEY_ADDR(target_edge.child->key));  // Actual value of key
+        if (state->current_key != nkey) {
+            // the key does not exist in the tree
+            // Either not exist originally or deleted by other remove()
+            return state->mode != DelMode::INJECT;
+        }
+
+        // perform appropriate action depending on the mode
+        if (state->mode == DelMode::INJECT) {
+            // store a reference to the target edge
+            state->target_edge = target_edge;
+            state->p_target_edge = p_target_edge;
+            // attempt to inject the operation at the node
+            inject(state);
+        }
+
+        // mode would have changed if injection was successful
+        if (state->mode != DelMode::INJECT) {
+            // check if the target node found by the seek function
+            // matches the one stored in the state record
+            if (state->target_edge.child != target_edge.child) {
+                return true;
+            }
+            // update the target edge information using the most recent seek
+            state->target_edge = target_edge;
+        }
+
+        if (state->mode == DelMode::DISCOVERY) {
+            // complex delete operation; locate the successor node
+            // and mark its child edges with promote flag
+            find_and_mark_successor(state);
+        }
+
+        if (state->mode == DelMode::DISCOVERY) {
+            // complex delete operation; promote the successor
+            // node’s key and remove the successor node
+            remove_successor(state);
+        }
+
+        if (state->mode == DelMode::CLEANUP) {
+            // either remove the target node (simple delete) or
+            // replace it with a new node with all fields unmarked
+            // (complex delete)
+            bool result = cleanup(state);
+            if (result) {
+                return true;
+            }
+            nkey = *(GET_KEY_ADDR(target_edge.child->key));
+            state->current_key = nkey;
+        }
+    }
 }
 
 
@@ -139,3 +200,147 @@ void LockFreeBST::trans2vec_helper(LFTreeNode *cur, vector<int> &v) {
     trans2vec_helper(GET_LEFT_CHILD(cur), v);
     trans2vec_helper(GET_RIGHT_CHILD(cur), v);
 }
+
+/******************* Functions called by remove operation *****************/
+void inject(StateRecord *state) {
+    LFTreeEdge target_edge = state->target_edge;
+    // try to set the intent flag on the target edge
+    // retrieve attributes of the target edge
+    LFTreeNode *parent = target_edge.parent;
+    LFTreeNode *node = target_edge.child;
+    EdgeType which_edge = target_edge.type;
+
+    LFTreeNode *old_node_ptr = node;
+    RESET_ALL_NODEPTR_FLG(old_node_ptr);
+    LFTreeNode *new_node_ptr = node;
+    SET_INTENT_FLG(new_node_ptr);
+
+    LFTreeNode **target_addr = which_edge == EdgeType::LEFT ? &(GET_NODE_ADDR(parent)->left) : &(GET_NODE_ADDR(parent)->right);
+    cout << *target_addr << " " << old_node_ptr << " " << new_node_ptr << endl;
+
+    bool result = __sync_bool_compare_and_swap(target_addr, old_node_ptr, new_node_ptr);
+    if (!result) {
+        // unable to set the intent flag; help if needed
+        LFTreeNode *child_node_ptr = which_edge == EdgeType::LEFT ? (GET_NODE_ADDR(parent)->left) : (GET_NODE_ADDR(parent)->right);
+        if (GET_INTENT_FLG(child_node_ptr)) {
+            help_target_node(target_edge);
+        } else if (GET_DELETE_FLG(child_node_ptr)) {
+            help_target_node(state->p_target_edge);
+        } else if (GET_PROMOTE_FLG(child_node_ptr)) {
+            help_successor_node(state->p_target_edge);
+        }
+        return;
+    }
+
+    // mark the left edge for deletion
+    result = mark_child_edge(state, EdgeType::LEFT);
+    if (!result) return;
+    // mark the right edge for deletion; cannot fail
+    mark_child_edge(state, EdgeType::RIGHT);
+
+    // initialize the type and mode of the operation
+    initialize_type_and_update_mode(state);
+}
+
+
+void find_and_mark_successor(StateRecord *state) {
+    // retrieve the addresses from the state record
+    LFTreeNode *node = state->target_edge.child;
+    SeekRecord *seek_record = state->successorRecord;
+
+    while (true) {
+        // find the node with the smallest key in the right subtree
+        bool result = find_smallest(state);
+        // read the mark flag of the key in the target node
+        if (GET_MODIFY_FLG(node->key) || !result) {
+            // successor node had already been selected before
+            // the traversal or the right subtree is empty
+            break;
+        }
+
+        // retrieve the information from the seek record
+        LFTreeEdge successor_edge = seek_record->last_edge;
+        LFTreeNode *left = seek_record->inject_edge.child;
+
+        // read the mark flag of the key under deletion
+        if (GET_MODIFY_FLG(node)) {  // successor node has already been selected
+            continue;
+        }
+
+        // try to set the promote flag on the left edge
+        LFTreeNode **target_addr = &(GET_NODE_ADDR(successor_edge.child)->left);
+        LFTreeNode *old_node_ptr = left;
+        RESET_ALL_NODEPTR_FLG(old_node_ptr);
+        SET_NULL_FLG(old_node_ptr);
+        LFTreeNode *new_node_ptr = node;
+        RESET_ALL_NODEPTR_FLG(new_node_ptr);
+        SET_NULL_FLG(new_node_ptr);
+        SET_PROMOTE_FLG(new_node_ptr);
+
+        result = __sync_bool_compare_and_swap(target_addr, old_node_ptr, new_node_ptr);
+        if (result) break;
+
+        // attempt to mark the edge failed; recover from the failure and retry if needed
+        LFTreeNode *left_child = GET_NODE_ADDR(successor_edge.child)->left;
+
+        if (GET_NULL_FLG(left_child) && GET_DELETE_FLG(left_child)) {
+            // the node found is undergoing deletion; need to help
+            // TODO: implement help target node
+            help_target_node(successor_edge);
+        }
+    }
+
+    // update the operation mode
+    update_mode(state);
+}
+
+
+// TODO: Implement remove successor
+void remove_successor(StateRecord *state) {
+    cout << "NOT IMPLEMENTED: remove successor" << endl;
+    return;
+}
+
+
+bool cleanup(StateRecord *state) {
+    cout << "NOT IMPLEMENTED: cleanup" << endl;
+    return false;
+}
+
+
+/*** Help routine functions ***/
+bool mark_child_edge(StateRecord *state, EdgeType which_edge) {
+    cout << "NOT IMPLEMENTED: mark child edge" << endl;
+    return false;
+}
+
+
+bool find_smallest(StateRecord *state) {
+    cout << "NOT IMPLEMENTED: find smallest" << endl;
+    return false;
+}
+
+
+void initialize_type_and_update_mode(StateRecord *state) {
+    cout << "NOT IMPLEMENTED: init type and update mode" << endl;
+    return;
+}
+
+
+void update_mode(StateRecord *state) {
+    cout << "NOT IMPLEMENTED: update mode" << endl;
+    return;
+}
+
+
+/*** Helping conflicting delte operation ***/
+void help_target_node(LFTreeEdge helpee_edge) {
+    cout << "NOT IMPLEMENTED: help target node" << endl;
+    return;
+}
+
+void help_successor_node(LFTreeEdge helpee_edge) {
+    cout << "NOT IMPLEMENTED: help successor node" << endl;
+    return;
+}
+
