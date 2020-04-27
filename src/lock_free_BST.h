@@ -94,7 +94,7 @@ void initialize_type_and_update_mode(StateRecord *state);
 void update_mode(StateRecord *state);
 
 // Helping conflict delete operation
-void help_target_node(LFTreeEdge helpee_edge);
-void help_successor_node(LFTreeEdge helpee_edge);
+void help_target_node(LFTreeEdge helpee_edge, StateRecord *state);
+void help_successor_node(LFTreeEdge helpee_edge, StateRecord *state);
 
 #endif //BINARY_SEARCH_TREE_LOCK_FREE_BST_H
