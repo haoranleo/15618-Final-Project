@@ -81,4 +81,20 @@ private:
 
 };
 
+// Helper functions for delete operation
+void inject(StateRecord *state);
+void find_and_mark_successor(StateRecord *state);
+void remove_successor(StateRecord *state);
+bool cleanup(StateRecord *state);
+
+// Help routine
+bool mark_child_edge(StateRecord *state, EdgeType which_edge);
+bool find_smallest(StateRecord *state);
+void initialize_type_and_update_mode(StateRecord *state);
+void update_mode(StateRecord *state);
+
+// Helping conflict delete operation
+void help_target_node(LFTreeEdge helpee_edge);
+void help_successor_node(LFTreeEdge helpee_edge);
+
 #endif //BINARY_SEARCH_TREE_LOCK_FREE_BST_H
