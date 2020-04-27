@@ -310,14 +310,74 @@ bool cleanup(StateRecord *state) {
 
 /*** Help routine functions ***/
 bool mark_child_edge(StateRecord *state, EdgeType which_edge) {
-    cout << "NOT IMPLEMENTED: mark child edge" << endl;
-    return false;
+    unsigned long flg = 0;
+    LFTreeEdge edge;
+    if(state->mode == DelMode::INJECT) {
+        edge = state->target_edge;
+        flg = DELETE_BIT;
+    } else {
+        edge = state->successorRecord->last_edge;
+        flg = PROMOTE_BIT;
+    }
+    LFTreeNode* node = edge.child;
+
+    while(true) {
+        LFTreeNode* child = which_edge == EdgeType::LEFT ? GET_LEFT_CHILD(node) : GET_RIGHT_CHILD(node);
+        if(GET_INTENT_FLG(child)) {
+            help_target_node(LFTreeEdge(node, GET_NODE_ADDR(child), which_edge));
+            continue;
+        } else if(GET_DELETE_FLG(child)) {
+            if(flg == DELETE_BIT) {
+                help_target_node(edge);
+                return false;
+            } else return true;
+        } else if(GET_PROMOTE_FLG(child)) {
+            if(flg == DELETE_BIT) {
+                help_successor_node(edge);
+                return false;
+            } else return true;
+        }
+        LFTreeNode* old_value = GET_NODE_ADDR(child);
+        if(GET_NULL_FLG(child)) SET_NULL_FLG(old_value);
+        LFTreeNode* new_value = NODE_PTR(LNG(old_value) | flg);
+        LFTreeNode** target_addr = which_edge == EdgeType::LEFT ? &(GET_NODE_ADDR(node)->left) : &(GET_NODE_ADDR(node)->right);
+        bool result = __sync_bool_compare_and_swap(target_addr, old_value, new_value);
+        if(result) break;
+    }
+    return true;
 }
 
 
 bool find_smallest(StateRecord *state) {
-    cout << "NOT IMPLEMENTED: find smallest" << endl;
-    return false;
+    // Find the node with the smallest key in the subtree
+    // rooted at the right child of the target node.
+    LFTreeNode* node = state->target_edge.child;
+    SeekRecord* seek_record = state->successorRecord;
+    LFTreeNode* right_child = GET_RIGHT_CHILD(node);
+    if(GET_NULL_FLG(right_child)) return false; // The right subtree is empty
+
+    // Initialize the variables used in the traversal
+    LFTreeEdge last_edge(node, GET_NODE_ADDR(right_child), EdgeType::RIGHT);
+    LFTreeEdge p_last_edge(node, GET_NODE_ADDR(right_child), EdgeType::RIGHT);
+    LFTreeEdge inject_edge;
+    while(true) {
+        LFTreeNode* cur = last_edge.child;
+        LFTreeNode* left_child = GET_LEFT_CHILD(cur);
+        if(GET_NULL_FLG(left_child)) {
+            inject_edge = LFTreeEdge(cur, GET_NODE_ADDR(left_child), EdgeType::LEFT);
+            break;
+        }
+
+        // Traverse the next edge
+        p_last_edge = last_edge;
+        last_edge = LFTreeEdge(cur, GET_NODE_ADDR(left_child), EdgeType::LEFT);
+    }
+
+    // Initialize seek record and return
+    seek_record->last_edge = last_edge;
+    seek_record->p_last_edge = p_last_edge;
+    seek_record->inject_edge = inject_edge;
+    return true;
 }
 
 
