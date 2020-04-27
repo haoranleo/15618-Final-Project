@@ -468,16 +468,16 @@ bool mark_child_edge(StateRecord *state, EdgeType which_edge) {
     while(true) {
         LFTreeNode* child = which_edge == EdgeType::LEFT ? GET_LEFT_CHILD(node) : GET_RIGHT_CHILD(node);
         if(GET_INTENT_FLG(child)) {
-            help_target_node(LFTreeEdge(node, GET_NODE_ADDR(child), which_edge));
+            help_target_node(LFTreeEdge(node, GET_NODE_ADDR(child), which_edge), state);
             continue;
         } else if(GET_DELETE_FLG(child)) {
             if(flg == DELETE_BIT) {
-                help_target_node(edge);
+                help_target_node(edge, state);
                 return false;
             } else return true;
         } else if(GET_PROMOTE_FLG(child)) {
             if(flg == DELETE_BIT) {
-                help_successor_node(edge);
+                help_successor_node(edge, state);
                 return false;
             } else return true;
         }
