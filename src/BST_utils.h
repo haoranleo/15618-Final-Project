@@ -89,6 +89,7 @@ public:
 #define RESET_INTENT_FLG(x) ((x) = NODE_PTR(LNG(x) & (~INTENT_BIT)))
 #define RESET_DELETE_FLG(x) ((x) = NODE_PTR(LNG(x) & (~DELETE_BIT)))
 #define RESET_PROMOTE_FLG(x) ((x) = NODE_PTR(LNG(x) & (~PROMOTE_BIT)))
+#define RESET_ALL_NODEPTR_FLG(x) ((x) = NODE_PTR(LNG(x) & (~(NULL_BIT | INTENT_BIT | DELETE_BIT | PROMOTE_BIT))))
 
 #define WITH_NULL_FLG(x) (NODE_PTR(LNG(x) | NULL_BIT))
 #define WITH_INTENT_FLG(x) (NODE_PTR(LNG(x) | INTENT_BIT))
