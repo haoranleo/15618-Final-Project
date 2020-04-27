@@ -18,13 +18,11 @@ public:
         root_t = new LFTreeNode(INT_MAX);
         root_r->right = root_s;
         root_s->right = root_t;
-        cout << root_r << " " << root_r->key << " " << root_r->left << " " << root_r->right << " " << &root_r->ready_to_replace << endl;
-        cout << root_s << " " << root_s->key << " " << root_s->left << " " << root_s->right << " " << &root_s->ready_to_replace << endl;
-        cout << root_t << " " << root_t->key << " " << root_t->left << " " << root_t->right << " " << &root_t->ready_to_replace << endl;
     }
 
     ~LockFreeBST() override {
-        // TODO: add code to delete all nodes
+        destroy(root_r);
+        root_r = root_s = root_t = nullptr;
     }
 
     /* Traverse the BST to determine whether the given value exists.

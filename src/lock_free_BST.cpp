@@ -14,21 +14,16 @@
 bool LockFreeBST::search(int v) {
     SeekRecord seek_record;
     seek(v, &seek_record);
-    cout << GET_KEY_VAL(seek_record.last_edge.child) << endl;
     if(GET_KEY_VAL(seek_record.last_edge.child) == v) return true;
     return false;
 }
 
 
 bool LockFreeBST::insert(int v) {
-    // TODO: use one target record or individual seek record?
     seek(v, &target_record);
     LFTreeEdge target_edge = target_record.last_edge;
     LFTreeNode* node = target_edge.child;
-    if(GET_KEY_VAL(node) == v) {
-        cout << "fail to insert " << v << endl;
-        return false;  // Exists duplicate node
-    }
+    if(GET_KEY_VAL(node) == v) return false;  // Exists duplicate node
 
     // Create new node
     EdgeType which_edge = target_record.inject_edge.type;
@@ -36,13 +31,11 @@ bool LockFreeBST::insert(int v) {
     LFTreeNode* new_child = new LFTreeNode(v);
     RESET_NULL_FLG(new_child);
     LFTreeNode** target_addr = which_edge == EdgeType::LEFT ? &(GET_NODE_ADDR(node)->left) : &(GET_NODE_ADDR(node)->right);
-    cout << *target_addr << " " << old_child << " " << new_child << endl;
+
+//    cout << *target_addr << " " << old_child << " " << new_child << endl;
     bool result = __sync_bool_compare_and_swap(target_addr, old_child, new_child);
-    if(result) {
-        cout << "succ insert " << v << endl;
-        return true;
-    }
-    cout << "fail to insert " << v << endl;
+    if(result) return true;
+
     // TODO: helper function
     return false;
 }
@@ -114,22 +107,35 @@ void LockFreeBST::seek(int target_key, SeekRecord *seek_record) {
 }
 
 
-//TODO
 void LockFreeBST::reinitialize() {
-
+    destroy(root_r);
+    root_r = new LFTreeNode(INT_MAX - 2);
+    root_s = new LFTreeNode(INT_MAX - 1);
+    root_t = new LFTreeNode(INT_MAX);
+    root_r->right = root_s;
+    root_s->right = root_t;
 }
 
 
 void LockFreeBST::destroy(LFTreeNode *cur) {
-
+    LFTreeNode* cur_node = GET_NODE_ADDR(cur);
+    if(!cur_node) return;
+    destroy(cur_node->left);
+    destroy(cur_node->right);
+    delete cur_node;
 }
 
 
 vector<int> LockFreeBST::trans2vec() {
-
+    vector<int> res;
+    trans2vec_helper(GET_LEFT_CHILD(root_t), res);
+    return res;
 }
 
 
 void LockFreeBST::trans2vec_helper(LFTreeNode *cur, vector<int> &v) {
-
+    if(!GET_NODE_ADDR(cur)) return;
+    v.emplace_back(GET_KEY_VAL(cur));
+    trans2vec_helper(GET_LEFT_CHILD(cur), v);
+    trans2vec_helper(GET_RIGHT_CHILD(cur), v);
 }
