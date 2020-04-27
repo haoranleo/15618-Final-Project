@@ -8,32 +8,35 @@
 #include <future>
 #include <thread>
 #include "fine_grained_BST.h"
+#include "lock_free_BST.h"
 
 
-class TestFineGrainedBST {
+class TestBST {
 public:
-    TestFineGrainedBST() {
-        bst = new FineGrainedBST(); // TODO: Should add function to test fine-grained BST and lock free BST respectively
+    TestBST() {
+        bst = nullptr;
         v1 = {16, 12, 13, 7, 33, 36, 11, 88, 5, 32, 8, 15, 34, 14, 55, 56};
         v1_pre_trav = {16, 12, 7, 5, 11, 8, 13, 15, 14, 33, 32, 36, 34, 88, 55, 56};
         thread_num = 4;
         ops_num = 4;
     }
 
-    ~TestFineGrainedBST() {
+    ~TestBST() {
         delete bst;
     }
 
-    /* Run all basic tests to check the correctness for all the
-     * operations of fine grained BST.
-     */
-    void test_all_basic();
-
-    /* Run all multi-threading tests to check the execution of all operations.
+    /* Run tests for BST with fine-grained locking
      * @param thread_num : Number of threads to spawn during the test.
      * @param ops_num : Number of operations each thread should do.
-     * */
-    void test_all_multi(unsigned int thread_num, unsigned int ops_num);
+     */
+    void test_fine_grained_BST(unsigned int thread_num, unsigned int ops_num);
+
+    /* Run tests for lock-free BST
+     * @param thread_num : Number of threads to spawn during the test.
+     * @param ops_num : Number of operations each thread should do.
+     */
+    void test_lock_free_BST(unsigned int thread_num, unsigned int ops_num);
+
 private:
     BinarySearchTree *bst;
 
@@ -53,6 +56,23 @@ private:
      *           false if fails to match.
      */
     bool compare(vector<int> vec);
+
+    /* Run all tests
+     * @param thread_num : Number of threads to spawn during the test.
+     * @param ops_num : Number of operations each thread should do.
+     */
+    void test_all(unsigned int thread_num, unsigned int ops_num);
+
+    /* Run all basic tests to check the correctness for all the
+     * operations of fine grained BST.
+     */
+    void test_all_basic();
+
+    /* Run all multi-threading tests to check the execution of all operations.
+     * @param thread_num : Number of threads to spawn during the test.
+     * @param ops_num : Number of operations each thread should do.
+     * */
+    void test_all_multi(unsigned int thread_num, unsigned int ops_num);
 
     /* Basic test data */
     vector<int> v1;
