@@ -404,10 +404,9 @@ void LockFreeBST::remove_successor(StateRecord *state) {
         } else {
             successor_edge = seek_record->last_edge;
         }
-        node->ready_to_replace = true;
-        update_mode(state);
     }
-
+    node->ready_to_replace = true;
+    update_mode(state);
 }
 
 
@@ -502,7 +501,7 @@ bool LockFreeBST::mark_child_edge(StateRecord *state, EdgeType which_edge) {
             help_target_node(LFTreeEdge(node, GET_NODE_ADDR(child), which_edge));
             continue;
         } else if(GET_DELETE_FLG(child)) {
-            if(flg == DELETE_BIT) {
+            if(flg == PROMOTE_BIT) {
                 help_target_node(edge);
                 return false;
             } else return true;
