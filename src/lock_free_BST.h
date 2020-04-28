@@ -18,11 +18,14 @@ public:
         root_t = new LFTreeNode(INT_MAX);
         root_r->right = root_s;
         root_s->right = root_t;
+        state = new StateRecord();
     }
 
     ~LockFreeBST() override {
         destroy(root_r);
         root_r = root_s = root_t = nullptr;
+        delete state;
+
     }
 
     /* Traverse the BST to determine whether the given value exists.
@@ -56,6 +59,7 @@ public:
 private:
     LFTreeNode *root_r, *root_s, *root_t; // They are all sentinel nodes
     SeekRecord target_record;
+    StateRecord *state;
 
     /* Destroy current BST
      * @param cur : Pointer to the current tree node.
@@ -79,22 +83,21 @@ private:
      * */
     void seek(int target_key, SeekRecord* seek_record);
 
+    // Helper functions for delete operation
+    void inject(StateRecord *state);
+    void find_and_mark_successor(StateRecord *state);
+    void remove_successor(StateRecord *state);
+    bool cleanup(StateRecord *state);
+
+    // Help routine
+    bool mark_child_edge(StateRecord *state, EdgeType which_edge);
+    bool find_smallest(StateRecord *state);
+    void initialize_type_and_update_mode(StateRecord *state);
+    void update_mode(StateRecord *state);
+
+    // Helping conflict delete operation
+    void help_target_node(LFTreeEdge helpee_edge);
+    void help_successor_node(LFTreeEdge helpee_edge);
 };
-
-// Helper functions for delete operation
-void inject(StateRecord *state);
-void find_and_mark_successor(StateRecord *state);
-void remove_successor(StateRecord *state);
-bool cleanup(StateRecord *state);
-
-// Help routine
-bool mark_child_edge(StateRecord *state, EdgeType which_edge);
-bool find_smallest(StateRecord *state);
-void initialize_type_and_update_mode(StateRecord *state);
-void update_mode(StateRecord *state);
-
-// Helping conflict delete operation
-void help_target_node(LFTreeEdge helpee_edge, StateRecord *state);
-void help_successor_node(LFTreeEdge helpee_edge, StateRecord *state);
 
 #endif //BINARY_SEARCH_TREE_LOCK_FREE_BST_H

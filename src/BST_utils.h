@@ -193,6 +193,7 @@ struct StateRecord {
 
     // the next field stores pointer to a seek record; it is used
     // for finding the successor if the delete operation is complex
+    // TODO: constructor and destructor for this field???
     SeekRecord *successorRecord;
 };
 
