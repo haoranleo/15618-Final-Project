@@ -3,6 +3,7 @@
 //
 
 #include "lock_free_BST.h"
+#define DEBUG 0
 
 /* Will need to create record wherever needed */
 
@@ -20,6 +21,7 @@ bool LockFreeBST::search(int v) {
 
 
 bool LockFreeBST::insert(int v) {
+    SeekRecord target_record;
     seek(v, &target_record);
     LFTreeEdge target_edge = target_record.last_edge;
     LFTreeNode* node = target_edge.child;
@@ -44,6 +46,8 @@ bool LockFreeBST::insert(int v) {
 
 
 bool LockFreeBST::remove(int v) {
+    SeekRecord target_record;
+    StateRecord *myState = new StateRecord();
     int nkey = 0;
     // Initialize remove state record
     myState->target_key = v;
@@ -177,10 +181,13 @@ void LockFreeBST::reinitialize() {
 
 void LockFreeBST::destroy(LFTreeNode *cur) {
     LFTreeNode* cur_node = GET_NODE_ADDR(cur);
-    if(!cur_node) return;
+    if(!cur_node || GET_NULL_FLG(cur)) return;
+//    cout << cur << " " << GET_KEY_VAL(cur) << endl;
     destroy(cur_node->left);
     destroy(cur_node->right);
+//    int c = GET_KEY_VAL(cur);
     delete cur_node;
+//    cout << "finish " << c << endl;
 }
 
 
@@ -192,7 +199,7 @@ vector<int> LockFreeBST::trans2vec() {
 
 
 void LockFreeBST::trans2vec_helper(LFTreeNode *cur, vector<int> &v) {
-    if(!GET_NODE_ADDR(cur)) return;
+    if(!GET_NODE_ADDR(cur) || GET_NULL_FLG(cur)) return;
     v.emplace_back(GET_KEY_VAL(cur));
     trans2vec_helper(GET_LEFT_CHILD(cur), v);
     trans2vec_helper(GET_RIGHT_CHILD(cur), v);
@@ -200,6 +207,10 @@ void LockFreeBST::trans2vec_helper(LFTreeNode *cur, vector<int> &v) {
 
 /******************* Functions called by remove operation *****************/
 void LockFreeBST::inject(StateRecord *state) {
+#if DEBUG
+    cout << "begin inject" << endl;
+#endif
+
     LFTreeEdge target_edge = state->target_edge;
     // Try to set the intent flag on the target edge
     // retrieve attributes of the target edge
@@ -241,6 +252,10 @@ void LockFreeBST::inject(StateRecord *state) {
 
 
 void LockFreeBST::find_and_mark_successor(StateRecord *state) {
+#if DEBUG
+    cout << "begin find_and_mark_successor" << endl;
+#endif
+
     // Retrieve the addresses from the state record
     LFTreeNode *node = state->target_edge.child;
     SeekRecord *seek_record = state->successorRecord;
@@ -248,6 +263,7 @@ void LockFreeBST::find_and_mark_successor(StateRecord *state) {
     while (true) {
         // Find the node with the smallest key in the right subtree
         bool result = find_smallest(state);
+
         // Read the mark flag of the key in the target node
         if (GET_MODIFY_FLG(GET_NODE_ADDR(node)->key) || !result) {
             // Successor node had already been selected before
@@ -292,6 +308,10 @@ void LockFreeBST::find_and_mark_successor(StateRecord *state) {
 
 
 void LockFreeBST::remove_successor(StateRecord *state) {
+#if DEBUG
+    cout << "begin remove_successor" << endl;
+#endif
+
     // Retrieve addresses from the state record
     LFTreeNode *node = state->target_edge.child;
     SeekRecord *seek_record = state->successorRecord;
@@ -377,6 +397,10 @@ void LockFreeBST::remove_successor(StateRecord *state) {
 
 
 bool LockFreeBST::cleanup(StateRecord *state) {
+#if DEBUG
+    cout << "begin cleanup" << endl;
+#endif
+
     LFTreeEdge target_edge = state->target_edge;
     LFTreeNode *parent = target_edge.parent;
     LFTreeNode *node = target_edge.child;
@@ -433,6 +457,7 @@ bool LockFreeBST::cleanup(StateRecord *state) {
     }
 
     LFTreeNode **target_addr = (p_which == EdgeType::LEFT) ? &(GET_NODE_ADDR(parent)->left) : &(GET_NODE_ADDR(parent)->right);
+//    cout << *target_addr << " " << old_value << " " << new_value << endl;
     bool result = __sync_bool_compare_and_swap(target_addr, old_value, new_value);
     return result;
 }
@@ -441,6 +466,10 @@ bool LockFreeBST::cleanup(StateRecord *state) {
 /*** Help routine functions ***/
 // TODO: Implement mark_child_edge
 bool LockFreeBST::mark_child_edge(StateRecord *state, EdgeType which_edge) {
+#if DEBUG
+    cout << "begin mark_child_edge" << endl;
+#endif
+
     unsigned long flg = 0;
     LFTreeEdge edge;
     if(state->mode == DelMode::INJECT) {
@@ -482,6 +511,10 @@ bool LockFreeBST::mark_child_edge(StateRecord *state, EdgeType which_edge) {
 
 // TODO: Implement mark_child_edge
 bool LockFreeBST::find_smallest(StateRecord *state) {
+#if DEBUG
+    cout << "begin find_smallest" << endl;
+#endif
+
     // Find the node with the smallest key in the subtree
     // rooted at the right child of the target node.
     LFTreeNode* node = state->target_edge.child;
@@ -515,6 +548,10 @@ bool LockFreeBST::find_smallest(StateRecord *state) {
 
 
 void LockFreeBST::initialize_type_and_update_mode(StateRecord *state) {
+#if DEBUG
+    cout << "begin initialize_type_and_update_mode" << endl;
+#endif
+
     // retrieve the target node's address from the state record
     LFTreeNode *node = state->target_edge.child;
 
@@ -531,6 +568,10 @@ void LockFreeBST::initialize_type_and_update_mode(StateRecord *state) {
 
 
 void LockFreeBST::update_mode(StateRecord *state) {
+#if DEBUG
+    cout << "begin update_mode" << endl;
+#endif
+
     if (state->type == DelType::SIMPLE) { // Simple delete
         state->mode = DelMode::CLEANUP;
     } else {  // Complex delete
@@ -542,6 +583,10 @@ void LockFreeBST::update_mode(StateRecord *state) {
 
 /*** Helping conflicting delete operation ***/
 void LockFreeBST::help_target_node(LFTreeEdge helpee_edge) {
+#if DEBUG
+    cout << "help_target_node" << endl;
+#endif
+
     StateRecord* state = new StateRecord();
     // Intent flag must be set on the edge
     // obtain new state record and init it
@@ -570,6 +615,10 @@ void LockFreeBST::help_target_node(LFTreeEdge helpee_edge) {
 
 
 void LockFreeBST::help_successor_node(LFTreeEdge helpee_edge) {
+#if DEBUG
+    cout << "help_successor_node" << endl;
+#endif
+
     // Retrieve the address of the successor node
     LFTreeNode *parent = helpee_edge.parent;
     LFTreeNode *node = helpee_edge.child;

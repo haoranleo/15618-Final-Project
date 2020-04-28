@@ -118,7 +118,7 @@ public:
     }
 
     ~LFTreeNode() {
-        delete key;
+        key = nullptr;
         left = nullptr; right = nullptr;
     }
 
@@ -182,6 +182,11 @@ enum DelType { SIMPLE, COMPLEX };
 
 // Record of current execution state
 struct StateRecord {
+    StateRecord() {
+        successorRecord = new SeekRecord();
+    }
+    ~StateRecord() { delete successorRecord; }
+
     LFTreeEdge target_edge;
     LFTreeEdge p_target_edge;
 
@@ -193,7 +198,6 @@ struct StateRecord {
 
     // the next field stores pointer to a seek record; it is used
     // for finding the successor if the delete operation is complex
-    // TODO: constructor and destructor for this field???
     SeekRecord *successorRecord;
 };
 

@@ -18,14 +18,11 @@ public:
         root_t = new LFTreeNode(INT_MAX);
         root_r->right = root_s;
         root_s->right = root_t;
-        myState = new StateRecord();
     }
 
     ~LockFreeBST() override {
         destroy(root_r);
         root_r = root_s = root_t = nullptr;
-        delete myState;
-
     }
 
     /* Traverse the BST to determine whether the given value exists.
@@ -58,8 +55,6 @@ public:
 
 private:
     LFTreeNode *root_r, *root_s, *root_t; // They are all sentinel nodes
-    SeekRecord target_record;
-    StateRecord *myState;
 
     /* Destroy current BST
      * @param cur : Pointer to the current tree node.
