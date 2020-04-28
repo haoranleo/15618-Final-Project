@@ -225,3 +225,6 @@ void FineGrainedBST::trans2vec_helper(TreeNode *cur, vector<int> &v) {
     trans2vec_helper(cur->left, v);
     trans2vec_helper(cur->right, v);
 }
+
+
+void FineGrainedBST::print_info() {}

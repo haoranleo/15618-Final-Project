@@ -205,6 +205,21 @@ void LockFreeBST::trans2vec_helper(LFTreeNode *cur, vector<int> &v) {
     trans2vec_helper(GET_RIGHT_CHILD(cur), v);
 }
 
+
+void LockFreeBST::print_info() {
+    cout << "=== Info about current BST: ===" << endl;
+    print_info_helper(root_t);
+}
+
+
+void LockFreeBST::print_info_helper(LFTreeNode* cur) {
+    if(!GET_NODE_ADDR(cur) || GET_NULL_FLG(cur)) return;
+    cout << "key: " << GET_KEY_VAL(cur) << " | addr: " << cur << endl;
+    print_info_helper(GET_LEFT_CHILD(cur));
+    print_info_helper(GET_RIGHT_CHILD(cur));
+}
+
+
 /******************* Functions called by remove operation *****************/
 void LockFreeBST::inject(StateRecord *state) {
 #if DEBUG

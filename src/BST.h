@@ -23,6 +23,8 @@ public:
     virtual void reinitialize() = 0;
     // Write all nodes' value to vector in pre-traversal order
     virtual vector<int> trans2vec() = 0;
+    // Print detailed information about nodes in the tree
+    virtual void print_info() = 0;
 };
 
 #endif //INC_15618_FINE_GRAINED_BST_BST_H

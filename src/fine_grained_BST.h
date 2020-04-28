@@ -47,6 +47,9 @@ public:
      */
     vector<int> trans2vec() override;
 
+    /* Print detailed information about nodes in the tree */
+    void print_info() override;
+
 private:
     TreeNode* root;
     Spinlock* root_lock;    // Lock must be acquired before doing any operation

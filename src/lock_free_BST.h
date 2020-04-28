@@ -53,6 +53,9 @@ public:
      */
     vector<int> trans2vec() override;
 
+    /* Print detailed information about nodes in the tree */
+    void print_info() override;
+
 private:
     LFTreeNode *root_r, *root_s, *root_t; // They are all sentinel nodes
 
@@ -66,6 +69,11 @@ private:
      * @param v : Vector to store the values in BST.
      */
     void trans2vec_helper(LFTreeNode* cur, vector<int>& v);
+
+    /* Helper function to print detailed information about nodes in the tree
+     * @param cur : Pointer to the current tree node.
+     */
+    void print_info_helper(LFTreeNode* cur);
 
     /* Execute the seek phase required for search, insert and remove API.
      * The seek function traverses the tree from the root node until it
