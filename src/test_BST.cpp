@@ -60,8 +60,8 @@ void TestBST::test_all_basic() {
     printResult("TEST_DELETE_2", test_delete_2());
     printResult("TEST_DELETE_3", test_delete_3());
     printResult("TEST_DELETE_4", test_delete_4());
-    printResult("TEST_COMBO_1", test_combo_1());
-    printResult("TEST_COMBO_2", test_combo_2());
+//    printResult("TEST_COMBO_1", test_combo_1());
+//    printResult("TEST_COMBO_2", test_combo_2());
 }
 
 
@@ -119,14 +119,16 @@ bool TestBST::test_delete_2() {
 bool TestBST::test_delete_3() {
     if(!instantiateBST(v1)) return false;
     if(!bst->remove(12)) return false;
-    return compare({16, 7, 5, 11, 8, 13, 15, 14, 33, 32, 36, 34, 88, 55, 56});
+    if(dynamic_cast<FineGrainedBST*> (bst)) return compare({16, 7, 5, 11, 8, 13, 15, 14, 33, 32, 36, 34, 88, 55, 56});
+    else return compare({16, 13, 7, 5, 11, 8, 15, 14, 33, 32, 36, 34, 88, 55, 56});
 }
 
 
 bool TestBST::test_delete_4() {
     if(!instantiateBST(v1)) return false;
     if(!bst->remove(16)) return false;
-    return compare({12, 7, 5, 11, 8, 13, 15, 14, 33, 32, 36, 34, 88, 55, 56});
+    if(dynamic_cast<FineGrainedBST*> (bst)) return compare({12, 7, 5, 11, 8, 13, 15, 14, 33, 32, 36, 34, 88, 55, 56});
+    else return compare({32, 12, 7, 5, 11, 8, 13, 15, 14, 33, 36, 34, 88, 55, 56});
 }
 
 
