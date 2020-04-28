@@ -46,63 +46,59 @@ bool LockFreeBST::insert(int v) {
 bool LockFreeBST::remove(int v) {
     int nkey = 0;
     // Initialize remove state record
-    state->target_key = v;
-    state->current_key = v;
-    state->mode = DelMode::INJECT;  // Start with inject mode
+    myState->target_key = v;
+    myState->current_key = v;
+    myState->mode = DelMode::INJECT;  // Start with inject mode
 
     while (true) {
-        seek(state->target_key, &target_record);
+        seek(myState->current_key, &target_record);
         LFTreeEdge target_edge = target_record.last_edge;
         LFTreeEdge p_target_edge = target_record.p_last_edge;
-        nkey = *(GET_KEY_ADDR(target_edge.child->key));  // Actual value of key
-        if (state->current_key != nkey) {
-            // the key does not exist in the tree
+        nkey = GET_KEY_VAL(target_edge.child);      // Actual value of key
+        if (myState->current_key != nkey) {
+            // The key does not exist in the tree
             // Either not exist originally or deleted by other remove()
-            return state->mode != DelMode::INJECT;
+            return myState->mode != DelMode::INJECT;
         }
 
-        // perform appropriate action depending on the mode
-        if (state->mode == DelMode::INJECT) {
-            // store a reference to the target edge
-            state->target_edge = target_edge;
-            state->p_target_edge = p_target_edge;
-            // attempt to inject the operation at the node
-            inject(state);
+        // Perform appropriate action depending on the mode
+        if (myState->mode == DelMode::INJECT) {
+            // Store a reference to the target edge
+            myState->target_edge = target_edge;
+            myState->p_target_edge = p_target_edge;
+            // Attempt to inject the operation at the node
+            inject(myState);
         }
 
-        // mode would have changed if injection was successful
-        if (state->mode != DelMode::INJECT) {
-            // check if the target node found by the seek function
+        // Mode would have changed if injection was successful
+        if (myState->mode != DelMode::INJECT) {
+            // Check if the target node found by the seek function
             // matches the one stored in the state record
-            if (state->target_edge.child != target_edge.child) {
+            if (myState->target_edge.child != target_edge.child) {
                 return true;
             }
-            // update the target edge information using the most recent seek
-            state->target_edge = target_edge;
+            // Update the target edge information using the most recent seek
+            myState->target_edge = target_edge;
         }
 
-        if (state->mode == DelMode::DISCOVERY) {
-            // complex delete operation; locate the successor node
+        if (myState->mode == DelMode::DISCOVERY) {
+            // Complex delete operation; locate the successor node
             // and mark its child edges with promote flag
-            find_and_mark_successor(state);
+            find_and_mark_successor(myState);
         }
 
-        if (state->mode == DelMode::DISCOVERY) {
-            // complex delete operation; promote the successor
+        if (myState->mode == DelMode::DISCOVERY) {
+            // Complex delete operation; promote the successor
             // node’s key and remove the successor node
-            remove_successor(state);
+            remove_successor(myState);
         }
 
-        if (state->mode == DelMode::CLEANUP) {
-            // either remove the target node (simple delete) or
-            // replace it with a new node with all fields unmarked
-            // (complex delete)
-            bool result = cleanup(state);
-            if (result) {
-                return true;
-            }
-            nkey = *(GET_KEY_ADDR(target_edge.child->key));
-            state->current_key = nkey;
+        if (myState->mode == DelMode::CLEANUP) {
+            // Either remove the target node (simple delete) or replace
+            // it with a new node with all fields unmarked (complex delete)
+            if (cleanup(myState)) return true;
+            nkey = GET_KEY_VAL(target_edge.child);
+            myState->current_key = nkey;
         }
     }
 }
@@ -205,7 +201,7 @@ void LockFreeBST::trans2vec_helper(LFTreeNode *cur, vector<int> &v) {
 /******************* Functions called by remove operation *****************/
 void LockFreeBST::inject(StateRecord *state) {
     LFTreeEdge target_edge = state->target_edge;
-    // try to set the intent flag on the target edge
+    // Try to set the intent flag on the target edge
     // retrieve attributes of the target edge
     LFTreeNode *parent = target_edge.parent;
     LFTreeNode *node = target_edge.child;
@@ -217,12 +213,12 @@ void LockFreeBST::inject(StateRecord *state) {
     SET_INTENT_FLG(new_node_ptr);
 
     LFTreeNode **target_addr = which_edge == EdgeType::LEFT ? &(GET_NODE_ADDR(parent)->left) : &(GET_NODE_ADDR(parent)->right);
-    cout << *target_addr << " " << old_node_ptr << " " << new_node_ptr << endl;
+//    cout << *target_addr << " " << old_node_ptr << " " << new_node_ptr << endl;
 
     bool result = __sync_bool_compare_and_swap(target_addr, old_node_ptr, new_node_ptr);
     if (!result) {
-        // unable to set the intent flag; help if needed
-        LFTreeNode *child_node_ptr = which_edge == EdgeType::LEFT ? (GET_NODE_ADDR(parent)->left) : (GET_NODE_ADDR(parent)->right);
+        // Unable to set the intent flag; help if needed
+        LFTreeNode *child_node_ptr = which_edge == EdgeType::LEFT ? GET_NODE_ADDR(parent)->left : GET_NODE_ADDR(parent)->right;
         if (GET_INTENT_FLG(child_node_ptr)) {
             help_target_node(target_edge);
         } else if (GET_DELETE_FLG(child_node_ptr)) {
@@ -233,42 +229,42 @@ void LockFreeBST::inject(StateRecord *state) {
         return;
     }
 
-    // mark the left edge for deletion
+    // Mark the left edge for deletion
     result = mark_child_edge(state, EdgeType::LEFT);
     if (!result) return;
-    // mark the right edge for deletion; cannot fail
+    // Mark the right edge for deletion; cannot fail
     mark_child_edge(state, EdgeType::RIGHT);
 
-    // initialize the type and mode of the operation
+    // Initialize the type and mode of the operation
     initialize_type_and_update_mode(state);
 }
 
 
 void LockFreeBST::find_and_mark_successor(StateRecord *state) {
-    // retrieve the addresses from the state record
+    // Retrieve the addresses from the state record
     LFTreeNode *node = state->target_edge.child;
     SeekRecord *seek_record = state->successorRecord;
 
     while (true) {
-        // find the node with the smallest key in the right subtree
+        // Find the node with the smallest key in the right subtree
         bool result = find_smallest(state);
-        // read the mark flag of the key in the target node
-        if (GET_MODIFY_FLG(node->key) || !result) {
-            // successor node had already been selected before
+        // Read the mark flag of the key in the target node
+        if (GET_MODIFY_FLG(GET_NODE_ADDR(node)->key) || !result) {
+            // Successor node had already been selected before
             // the traversal or the right subtree is empty
             break;
         }
 
-        // retrieve the information from the seek record
+        // Retrieve the information from the seek record
         LFTreeEdge successor_edge = seek_record->last_edge;
         LFTreeNode *left = seek_record->inject_edge.child;
 
-        // read the mark flag of the key under deletion
-        if (GET_MODIFY_FLG(node)) {  // successor node has already been selected
+        // Read the mark flag of the key under deletion
+        if (GET_MODIFY_FLG(GET_NODE_ADDR(node)->key)) {  // Successor node has already been selected
             continue;
         }
 
-        // try to set the promote flag on the left edge
+        // Try to set the promote flag on the left edge
         LFTreeNode **target_addr = &(GET_NODE_ADDR(successor_edge.child)->left);
         LFTreeNode *old_node_ptr = left;
         RESET_ALL_NODEPTR_FLG(old_node_ptr);
@@ -281,30 +277,30 @@ void LockFreeBST::find_and_mark_successor(StateRecord *state) {
         result = __sync_bool_compare_and_swap(target_addr, old_node_ptr, new_node_ptr);
         if (result) break;
 
-        // attempt to mark the edge failed; recover from the failure and retry if needed
+        // Attempt to mark the edge failed; recover from the failure and retry if needed
         LFTreeNode *left_child = GET_NODE_ADDR(successor_edge.child)->left;
 
         if (GET_NULL_FLG(left_child) && GET_DELETE_FLG(left_child)) {
-            // the node found is undergoing deletion; need to help
+            // The node found is undergoing deletion; need to help
             help_target_node(successor_edge);
         }
     }
 
-    // update the operation mode
+    // Update the operation mode
     update_mode(state);
 }
 
 
 void LockFreeBST::remove_successor(StateRecord *state) {
-    // retrieve addresses from the state record
+    // Retrieve addresses from the state record
     LFTreeNode *node = state->target_edge.child;
     SeekRecord *seek_record = state->successorRecord;
 
-    // extract information about the successor node
+    // Extract information about the successor node
     LFTreeEdge successor_edge = seek_record->last_edge;
 
-    // ascertain that the seek record for the successor node contains valid information
-    LFTreeNode *left_child_addr = successor_edge.child->left;
+    // Ascertain that the seek record for the successor node contains valid information
+    LFTreeNode *left_child_addr = GET_LEFT_CHILD(successor_edge.child);
 
     if (!GET_PROMOTE_FLG(left_child_addr) || (GET_NODE_ADDR(left_child_addr) != node)) {
         node->ready_to_replace = true;
@@ -312,64 +308,55 @@ void LockFreeBST::remove_successor(StateRecord *state) {
         return;
     }
 
-    // mark the right edge for promotion if unmarked
+    // Mark the right edge for promotion if unmarked
     mark_child_edge(state, EdgeType::RIGHT);
 
-    // promote the key
-    int *new_key_to_set = successor_edge.child->key;
+    // Promote the key
+    int *new_key_to_set = GET_KEY_ADDR(GET_NODE_ADDR(successor_edge.child)->key);
     SET_MODIFY_FLG(new_key_to_set);
-    node->key = new_key_to_set;
+    GET_NODE_ADDR(node)->key = new_key_to_set;
 
     bool set_del_flag;
     EdgeType which_edge;
     while (true) {
-        // check if the successor is the right child of the target node irself
+        // Check if the successor is the right child of the target node irself
         if (successor_edge.parent == node) {  // TODO: do we need to use macro here?
-            // need to modify the right edge of the target node whose
-            // delete flag is set
+            // Need to modify the right edge of the target node whose delete flag is set
             set_del_flag = true;
             which_edge = EdgeType::RIGHT;
         } else {
             set_del_flag = false;
             which_edge = EdgeType ::LEFT;
         }
-        LFTreeNode *which_child = which_edge == EdgeType::LEFT ? successor_edge.parent->left : successor_edge.parent->right;
-        LFTreeNode *right = successor_edge.child->right;
+        LFTreeNode *which_child = which_edge == EdgeType::LEFT ? GET_LEFT_CHILD(successor_edge.parent) : GET_RIGHT_CHILD(successor_edge.parent);
         LFTreeNode *old_value = successor_edge.child;
-        LFTreeNode *new_value = nullptr;
-        if (set_del_flag) {
-            SET_DELETE_FLG(old_value);
-        }
-        if (GET_INTENT_FLG(which_child)) {
-            SET_INTENT_FLG(old_value);
-        }
+        RESET_ALL_NODEPTR_FLG(old_value);
+        if (set_del_flag) SET_DELETE_FLG(old_value);
+        if (GET_INTENT_FLG(which_child)) SET_INTENT_FLG(old_value);
 
+        LFTreeNode *right = GET_RIGHT_CHILD(successor_edge.child);
+        LFTreeNode *new_value = nullptr;
         if (GET_NULL_FLG(right)) {
-            // only set the null flag; do not change the address
-            // new_value = <1_n, 0_i, set_d_flg, 0_p, successorEdge.child>
+            // Only set the null flag; do not change the address
             new_value = successor_edge.child;
             RESET_ALL_NODEPTR_FLG(new_value);
             SET_NULL_FLG(new_value);
-            if (set_del_flag) {
-                SET_DELETE_FLG(new_value);
-            }
+            if (set_del_flag) SET_DELETE_FLG(new_value);
         } else {
-            // switch the pointer to point to the grand child
-            // new_value = <0_n, 0_i, set_d_flg, 0_p, right>
+            // Switch the pointer to point to the grand child
             new_value = right;
             RESET_ALL_NODEPTR_FLG(new_value);
-            if (set_del_flag) {
-                SET_DELETE_FLG(new_value);
-            }
+            if (set_del_flag) SET_DELETE_FLG(new_value);
         }
 
-        which_child = which_edge == EdgeType::LEFT ? successor_edge.parent->left : successor_edge.parent->right;
-        bool result = __sync_bool_compare_and_swap(&which_child, old_value, new_value);
+        LFTreeNode **target_addr = which_edge == EdgeType::LEFT ?
+                &(GET_NODE_ADDR(successor_edge.parent)->left) : &(GET_NODE_ADDR(successor_edge.parent)->right);
+        bool result = __sync_bool_compare_and_swap(target_addr, old_value, new_value);
 
         if (result || set_del_flag) break;
 
         LFTreeEdge p_last_edge = seek_record->p_last_edge;
-        which_child = which_edge == EdgeType::LEFT ? successor_edge.parent->left : successor_edge.parent->right;
+        which_child = which_edge == EdgeType::LEFT ? GET_LEFT_CHILD(successor_edge.parent) : GET_RIGHT_CHILD(successor_edge.parent);
         if (GET_DELETE_FLG(which_child) && p_last_edge.parent != nullptr) {
             help_target_node(p_last_edge);
         }
@@ -377,7 +364,7 @@ void LockFreeBST::remove_successor(StateRecord *state) {
         result = find_smallest(state);
         LFTreeEdge last_edge = seek_record->last_edge;
         if (!result || last_edge.child != successor_edge.child) {
-            // the successor node has already been removed
+            // The successor node has already been removed
             break;
         } else {
             successor_edge = seek_record->last_edge;
@@ -399,54 +386,53 @@ bool LockFreeBST::cleanup(StateRecord *state) {
     LFTreeNode *new_value = nullptr;
 
     if (state->type == DelType::COMPLEX) {
-        // replace the node with a new copy in which all fields are unmarked
+        // Replace the node with a new copy in which all fields are unmarked
         LFTreeNode *new_node = new LFTreeNode();
-        int *new_key = node->key;
+        int *new_key = GET_NODE_ADDR(node)->key;
         RESET_MODIFY_FLG(new_key);
-        new_node->key = new_key;
+        GET_NODE_ADDR(new_node)->key = new_key;
 
-        // initialize left and right child pointers
-        LFTreeNode *left = node->left;
+        // Initialize left and right child pointers
+        LFTreeNode *left = GET_LEFT_CHILD(node);
         RESET_ALL_NODEPTR_FLG(left);
-        new_node->left = left;
+        GET_NODE_ADDR(new_node)->left = left;
 
-        LFTreeNode *right = node->right;
+        LFTreeNode *right = GET_RIGHT_CHILD(node);
         if (GET_NULL_FLG(right)) {
             right = nullptr;
             SET_NULL_FLG(right);
         } else {
             RESET_ALL_NODEPTR_FLG(right);
         }
-        new_node->right = right;
+        GET_NODE_ADDR(new_node)->right = right;
 
-        // initialize the arguments of CAS instruction
+        // Initialize the arguments of CAS instruction
         LFTreeNode *old_value = node;
         RESET_ALL_NODEPTR_FLG(old_value);
         SET_INTENT_FLG(old_value);
         LFTreeNode *new_value = new_node;
         RESET_ALL_NODEPTR_FLG(new_value);
-    } else {  // remove the node
-        // determine to which grand child will the edge at
-        // the parent be switched
-        EdgeType n_which = (GET_NULL_FLG(node->left)) ? EdgeType::RIGHT : EdgeType::LEFT;
+    } else {  // Remove the node
+        // Determine to which grand child will the edge at the parent be switched
+        EdgeType n_which = (GET_NULL_FLG(GET_LEFT_CHILD(node))) ? EdgeType::RIGHT : EdgeType::LEFT;
 
-        // initialize the arguments of the CAS instruction
+        // Initialize the arguments of the CAS instruction
         old_value = node;
         RESET_ALL_NODEPTR_FLG(old_value);
         SET_INTENT_FLG(old_value);
 
-        LFTreeNode *address = (n_which == EdgeType::LEFT) ? node->left : node->right;
-        if (GET_NULL_FLG(address)) {  // set the null flag only
+        LFTreeNode *address = (n_which == EdgeType::LEFT) ? GET_LEFT_CHILD(node) : GET_RIGHT_CHILD(node);
+        if (GET_NULL_FLG(address)) {  // Set the null flag only
             new_value = node;
             RESET_ALL_NODEPTR_FLG(new_value);
             SET_NULL_FLG(new_value);
-        } else {  // change the pointer to the grant child
+        } else {  // Change the pointer to the grant child
             new_value = address;
             RESET_ALL_NODEPTR_FLG(new_value);
         }
     }
 
-    LFTreeNode **target_addr = (p_which == EdgeType::LEFT) ? &(parent->left) : &(parent->right);
+    LFTreeNode **target_addr = (p_which == EdgeType::LEFT) ? &(GET_NODE_ADDR(parent)->left) : &(GET_NODE_ADDR(parent)->right);
     bool result = __sync_bool_compare_and_swap(target_addr, old_value, new_value);
     return result;
 }
@@ -483,6 +469,7 @@ bool LockFreeBST::mark_child_edge(StateRecord *state, EdgeType which_edge) {
             } else return true;
         }
         LFTreeNode* old_value = GET_NODE_ADDR(child);
+        RESET_ALL_NODEPTR_FLG(old_value);
         if(GET_NULL_FLG(child)) SET_NULL_FLG(old_value);
         LFTreeNode* new_value = NODE_PTR(LNG(old_value) | flg);
         LFTreeNode** target_addr = which_edge == EdgeType::LEFT ? &(GET_NODE_ADDR(node)->left) : &(GET_NODE_ADDR(node)->right);
@@ -531,12 +518,12 @@ void LockFreeBST::initialize_type_and_update_mode(StateRecord *state) {
     // retrieve the target node's address from the state record
     LFTreeNode *node = state->target_edge.child;
 
-    LFTreeNode *left_child = node->left;
-    LFTreeNode *right_child = node->right;
+    LFTreeNode *left_child = GET_LEFT_CHILD(node);
+    LFTreeNode *right_child = GET_RIGHT_CHILD(node);
     if (GET_NULL_FLG(left_child) || GET_NULL_FLG(right_child)) {
-        // one of the child pointers is null
-        state->type = (GET_MODIFY_FLG(node->key)) ? DelType::COMPLEX : DelType::SIMPLE;
-    } else {  // both child pointers are non-null
+        // One of the child pointers is null
+        state->type = (GET_MODIFY_FLG(GET_NODE_ADDR(node)->key)) ? DelType::COMPLEX : DelType::SIMPLE;
+    } else {  // Both child pointers are non-null
         state->type = DelType::COMPLEX;
     }
     update_mode(state);
@@ -544,29 +531,30 @@ void LockFreeBST::initialize_type_and_update_mode(StateRecord *state) {
 
 
 void LockFreeBST::update_mode(StateRecord *state) {
-    if (state->type == DelType::SIMPLE) { // simple delete
+    if (state->type == DelType::SIMPLE) { // Simple delete
         state->mode = DelMode::CLEANUP;
-    } else {  // complex delete
+    } else {  // Complex delete
         LFTreeNode *node = state->target_edge.child;
-        state->mode = (node->ready_to_replace) ? DelMode::CLEANUP : DelMode::DISCOVERY;
+        state->mode = (GET_NODE_ADDR(node)->ready_to_replace) ? DelMode::CLEANUP : DelMode::DISCOVERY;
     }
 }
 
 
 /*** Helping conflicting delete operation ***/
 void LockFreeBST::help_target_node(LFTreeEdge helpee_edge) {
-    // intent flag must be set on the edge
+    StateRecord* state = new StateRecord();
+    // Intent flag must be set on the edge
     // obtain new state record and init it
     state->target_edge = helpee_edge;
     state->mode = DelMode::INJECT;
 
-    // mark the left and right edges if unmarked
+    // Mark the left and right edges if unmarked
     bool result = mark_child_edge(state, EdgeType::LEFT);
     if (!result) return;
     mark_child_edge(state, EdgeType::RIGHT);
     initialize_type_and_update_mode(state);
 
-    // perform the remaining steps of a delete operation
+    // Perform the remaining steps of a delete operation
     if (state->mode == DelMode::DISCOVERY) {
         find_and_mark_successor(state);
     }
@@ -582,27 +570,28 @@ void LockFreeBST::help_target_node(LFTreeEdge helpee_edge) {
 
 
 void LockFreeBST::help_successor_node(LFTreeEdge helpee_edge) {
-    // retrieve the address of the successor node
+    // Retrieve the address of the successor node
     LFTreeNode *parent = helpee_edge.parent;
     LFTreeNode *node = helpee_edge.child;
-    // promote flat must be set on the successor node's left edge
+    // Promote flat must be set on the successor node's left edge
     // retrieve the address of the target node
-    LFTreeNode *left = node->left;
+    LFTreeNode *left = GET_LEFT_CHILD(node);
     RESET_ALL_NODEPTR_FLG(left);
 
-    // obtain new state record and initialize it
-    LFTreeEdge *new_target_edge = new LFTreeEdge(nullptr, left, EdgeType::INIT);
-    state->target_edge = *(new_target_edge);
+    // Obtain new state record and initialize it
+    StateRecord* state = new StateRecord();
+    state->target_edge = LFTreeEdge(nullptr, left, EdgeType::INIT);
     state->mode = DelMode::DISCOVERY;
 
+    // TODO: WTF? state->successorRecord would be nullptr in this case
     SeekRecord *seek_record = state->successorRecord;
-    // initialize the seek record in the state record
+    // Initialize the seek record in the state record
     seek_record->last_edge = helpee_edge;
-    LFTreeEdge *new_p_last_edge = new LFTreeEdge(nullptr, parent, EdgeType::INIT);
-    seek_record->p_last_edge = *(new_p_last_edge);
+    seek_record->p_last_edge = LFTreeEdge(nullptr, parent, EdgeType::INIT);
 
-    // promote the successor node's key and remove the successor node
+    // Promote the successor node's key and remove the successor node
     remove_successor(state);
-    // no need to perform the cleanup
+
+    // No need to perform the cleanup
 }
 
