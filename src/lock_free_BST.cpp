@@ -125,7 +125,7 @@ void LockFreeBST::seek(int target_key, SeekRecord *seek_record) {
             int cur_key = GET_KEY_VAL(cur);
             EdgeType which_edge = target_key < cur_key ? EdgeType::LEFT : EdgeType::RIGHT;
             LFTreeNode* raw_child = which_edge == EdgeType::LEFT ? GET_LEFT_CHILD(cur) : GET_RIGHT_CHILD(cur);
-            LFTreeNode *next = raw_child;
+            LFTreeNode *next = GET_NODE_ADDR(raw_child);
 //            RESET_ALL_NODEPTR_FLG(next);  // TODO: not sure here
 
             // If either key found or no next edge to follow, stop the traversal
@@ -341,7 +341,7 @@ void LockFreeBST::remove_successor(StateRecord *state) {
     // Ascertain that the seek record for the successor node contains valid information
     LFTreeNode *left_child_addr = GET_LEFT_CHILD(successor_edge.child);
 
-    if (!GET_PROMOTE_FLG(left_child_addr) || (left_child_addr != node)) {
+    if (!GET_PROMOTE_FLG(left_child_addr) || (GET_NODE_ADDR(left_child_addr) != node)) {
         node->ready_to_replace = true;
         update_mode(state);
         return;
@@ -501,7 +501,7 @@ bool LockFreeBST::mark_child_edge(StateRecord *state, EdgeType which_edge) {
     while(true) {
         LFTreeNode* child = which_edge == EdgeType::LEFT ? GET_LEFT_CHILD(node) : GET_RIGHT_CHILD(node);
         if(GET_INTENT_FLG(child)) {
-            help_target_node(LFTreeEdge(node, child, which_edge));
+            help_target_node(LFTreeEdge(node, GET_NODE_ADDR(child), which_edge));
             continue;
         } else if(GET_DELETE_FLG(child)) {
             if(flg == PROMOTE_BIT) {
@@ -539,20 +539,20 @@ bool LockFreeBST::find_smallest(StateRecord *state) {
     if(GET_NULL_FLG(right_child)) return false; // The right subtree is empty
 
     // Initialize the variables used in the traversal
-    LFTreeEdge last_edge(node, right_child, EdgeType::RIGHT);
-    LFTreeEdge p_last_edge(node, right_child, EdgeType::RIGHT);
+    LFTreeEdge last_edge(node, GET_NODE_ADDR(right_child), EdgeType::RIGHT);
+    LFTreeEdge p_last_edge(node, GET_NODE_ADDR(right_child), EdgeType::RIGHT);
     LFTreeEdge inject_edge;
     while(true) {
         LFTreeNode* cur = last_edge.child;
         LFTreeNode* left_child = GET_LEFT_CHILD(cur);
         if(GET_NULL_FLG(left_child)) {
-            inject_edge = LFTreeEdge(cur, left_child, EdgeType::LEFT);
+            inject_edge = LFTreeEdge(cur, GET_NODE_ADDR(left_child), EdgeType::LEFT);
             break;
         }
 
         // Traverse the next edge
         p_last_edge = last_edge;
-        last_edge = LFTreeEdge(cur, left_child, EdgeType::LEFT);
+        last_edge = LFTreeEdge(cur, GET_NODE_ADDR(left_child), EdgeType::LEFT);
     }
 
     // Initialize seek record and return
