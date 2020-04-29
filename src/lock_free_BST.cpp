@@ -224,6 +224,21 @@ void LockFreeBST::print_info_helper(LFTreeNode* cur) {
 }
 
 
+vector<LFTreeNode *> LockFreeBST::traverse_node_info() {
+    vector<LFTreeNode *> res;
+    traverse_node_info_helper(GET_LEFT_CHILD(root_t), res);
+    return res;
+}
+
+void LockFreeBST::traverse_node_info_helper(LFTreeNode *cur, vector<LFTreeNode *> &node_info) {
+    if(!GET_NODE_ADDR(cur) || GET_NULL_FLG(cur)) return;
+    node_info.emplace_back(cur);
+    traverse_node_info_helper(GET_LEFT_CHILD(cur), node_info);
+    traverse_node_info_helper(GET_RIGHT_CHILD(cur), node_info);
+}
+
+
+
 /******************* Functions called by remove operation *****************/
 void LockFreeBST::inject(StateRecord *state) {
 #if DEBUG
