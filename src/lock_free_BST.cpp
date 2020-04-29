@@ -445,10 +445,10 @@ bool LockFreeBST::cleanup(StateRecord *state) {
         GET_NODE_ADDR(new_node)->right = right;
 
         // Initialize the arguments of CAS instruction
-        LFTreeNode *old_value = node;
+        old_value = node;
         RESET_ALL_NODEPTR_FLG(old_value);
         SET_INTENT_FLG(old_value);
-        LFTreeNode *new_value = new_node;
+        new_value = new_node;
         RESET_ALL_NODEPTR_FLG(new_value);
     } else {  // Remove the node
         // Determine to which grand child will the edge at the parent be switched
