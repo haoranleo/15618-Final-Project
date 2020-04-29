@@ -191,18 +191,17 @@ void TestBST::test_all_multi(unsigned int thread_num, unsigned int ops_num) {
     this->thread_num = thread_num;
     this->ops_num = ops_num;
     unsigned int total_ops = thread_num * ops_num;
-    v2.resize(total_ops);
+    v2.resize(total_ops, 0);
     for(int i = 0; i < total_ops; ++i) {
         v2[i] = i;
-        cout << v2[i] << endl;
     }
     printResult("TEST_MULTI_SEARCH", test_multi_search());
     printResult("TEST_MULTI_INSERT", test_multi_insert());
     printResult("TEST_MULTI_DELETE", test_multi_delete());
 
     // Test with validation
-//    printResult("TEST_MULTI_INSERT_AND_TREE_VALIDATION", test_multi_insert_and_tree_validation());
-//    printResult("TEST_MULTI_DELETE_AND_TREE_VALIDATION", test_multi_delete_and_tree_validation());
+    printResult("TEST_MULTI_INSERT_AND_TREE_VALIDATION", test_multi_insert_and_tree_validation());
+    printResult("TEST_MULTI_DELETE_AND_TREE_VALIDATION", test_multi_delete_and_tree_validation());
 }
 
 
@@ -294,6 +293,5 @@ bool TestBST::test_multi_delete_and_tree_validation() {
     }
     if (!result) return false;
     // compare set
-    cout << "Set_size: " << test_st.size() << endl;
     return compare_set(test_st);
 }
