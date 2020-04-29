@@ -15,33 +15,36 @@
 bool LockFreeBST::search(int v) {
     SeekRecord seek_record;
     seek(v, &seek_record);
-    if(GET_KEY_VAL(seek_record.last_edge.child) == v) return true;
-    return false;
+    return GET_KEY_VAL(seek_record.last_edge.child) == v;
 }
 
 
 bool LockFreeBST::insert(int v) {
-    SeekRecord target_record;
-    seek(v, &target_record);
-    LFTreeEdge target_edge = target_record.last_edge;
-    LFTreeNode* node = target_edge.child;
-    if(GET_KEY_VAL(node) == v) return false;  // Exists duplicate node
+    while (true) {
+        SeekRecord target_record;
+        seek(v, &target_record);
+        LFTreeEdge target_edge = target_record.last_edge;
+        LFTreeNode* node = target_edge.child;
+        if(GET_KEY_VAL(node) == v) return false;  // Exists duplicate node
 
-    // Create new node
-    EdgeType which_edge = target_record.inject_edge.type;
-    LFTreeNode* old_child = target_record.inject_edge.child;
-    LFTreeNode* new_child = new LFTreeNode(v);
-    RESET_NULL_FLG(new_child);
-    LFTreeNode** target_addr = which_edge == EdgeType::LEFT ? &(GET_NODE_ADDR(node)->left) : &(GET_NODE_ADDR(node)->right);
+        // Create new node
+        EdgeType which_edge = target_record.inject_edge.type;
+        LFTreeNode* old_child = target_record.inject_edge.child;
+        RESET_ALL_NODEPTR_FLG(old_child);
+        SET_NULL_FLG(old_child);
+        LFTreeNode* new_child = new LFTreeNode(v);
+        RESET_ALL_NODEPTR_FLG(new_child);
+        LFTreeNode** target_addr = which_edge == EdgeType::LEFT ? &(GET_NODE_ADDR(node)->left) : &(GET_NODE_ADDR(node)->right);
 
 //    cout << *target_addr << " " << old_child << " " << new_child << endl;
-    bool result = __sync_bool_compare_and_swap(target_addr, old_child, new_child);
-    if(result) return true;
+        bool result = __sync_bool_compare_and_swap(target_addr, old_child, new_child);
+        if(result) return true;
 
-    // Help if needed
-    LFTreeNode* node_child = which_edge == EdgeType::LEFT ? GET_LEFT_CHILD(node) : GET_RIGHT_CHILD(node);
-    if(GET_DELETE_FLG(node_child)) help_target_node(target_edge);
-    return false;
+        // Help if needed
+        LFTreeNode* node_child = which_edge == EdgeType::LEFT ? GET_LEFT_CHILD(node) : GET_RIGHT_CHILD(node);
+        if(GET_DELETE_FLG(node_child)) help_target_node(target_edge);
+        else if (GET_PROMOTE_FLG(node_child)) help_successor_node(target_edge);
+    }
 }
 
 
@@ -120,9 +123,10 @@ void LockFreeBST::seek(int target_key, SeekRecord *seek_record) {
 
         while(true) {
             int cur_key = GET_KEY_VAL(cur);
-            EdgeType which_edge = target_key > cur_key ? EdgeType::RIGHT : EdgeType::LEFT;
+            EdgeType which_edge = target_key < cur_key ? EdgeType::LEFT : EdgeType::RIGHT;
             LFTreeNode* raw_child = which_edge == EdgeType::LEFT ? GET_LEFT_CHILD(cur) : GET_RIGHT_CHILD(cur);
             LFTreeNode *next = raw_child;
+//            RESET_ALL_NODEPTR_FLG(next);  // TODO: not sure here
 
             // If either key found or no next edge to follow, stop the traversal
             if(cur_key == target_key || GET_NULL_FLG(raw_child)) {
@@ -337,7 +341,7 @@ void LockFreeBST::remove_successor(StateRecord *state) {
     // Ascertain that the seek record for the successor node contains valid information
     LFTreeNode *left_child_addr = GET_LEFT_CHILD(successor_edge.child);
 
-    if (!GET_PROMOTE_FLG(left_child_addr) || (GET_NODE_ADDR(left_child_addr) != node)) {
+    if (!GET_PROMOTE_FLG(left_child_addr) || (left_child_addr != node)) {
         node->ready_to_replace = true;
         update_mode(state);
         return;
@@ -478,7 +482,6 @@ bool LockFreeBST::cleanup(StateRecord *state) {
 
 
 /*** Help routine functions ***/
-// TODO: Implement mark_child_edge
 bool LockFreeBST::mark_child_edge(StateRecord *state, EdgeType which_edge) {
 #if DEBUG
     cout << "begin mark_child_edge" << endl;
@@ -498,7 +501,7 @@ bool LockFreeBST::mark_child_edge(StateRecord *state, EdgeType which_edge) {
     while(true) {
         LFTreeNode* child = which_edge == EdgeType::LEFT ? GET_LEFT_CHILD(node) : GET_RIGHT_CHILD(node);
         if(GET_INTENT_FLG(child)) {
-            help_target_node(LFTreeEdge(node, GET_NODE_ADDR(child), which_edge));
+            help_target_node(LFTreeEdge(node, child, which_edge));
             continue;
         } else if(GET_DELETE_FLG(child)) {
             if(flg == PROMOTE_BIT) {
@@ -523,7 +526,6 @@ bool LockFreeBST::mark_child_edge(StateRecord *state, EdgeType which_edge) {
 }
 
 
-// TODO: Implement mark_child_edge
 bool LockFreeBST::find_smallest(StateRecord *state) {
 #if DEBUG
     cout << "begin find_smallest" << endl;
@@ -537,20 +539,20 @@ bool LockFreeBST::find_smallest(StateRecord *state) {
     if(GET_NULL_FLG(right_child)) return false; // The right subtree is empty
 
     // Initialize the variables used in the traversal
-    LFTreeEdge last_edge(node, GET_NODE_ADDR(right_child), EdgeType::RIGHT);
-    LFTreeEdge p_last_edge(node, GET_NODE_ADDR(right_child), EdgeType::RIGHT);
+    LFTreeEdge last_edge(node, right_child, EdgeType::RIGHT);
+    LFTreeEdge p_last_edge(node, right_child, EdgeType::RIGHT);
     LFTreeEdge inject_edge;
     while(true) {
         LFTreeNode* cur = last_edge.child;
         LFTreeNode* left_child = GET_LEFT_CHILD(cur);
         if(GET_NULL_FLG(left_child)) {
-            inject_edge = LFTreeEdge(cur, GET_NODE_ADDR(left_child), EdgeType::LEFT);
+            inject_edge = LFTreeEdge(cur, left_child, EdgeType::LEFT);
             break;
         }
 
         // Traverse the next edge
         p_last_edge = last_edge;
-        last_edge = LFTreeEdge(cur, GET_NODE_ADDR(left_child), EdgeType::LEFT);
+        last_edge = LFTreeEdge(cur, left_child, EdgeType::LEFT);
     }
 
     // Initialize seek record and return
@@ -639,7 +641,7 @@ void LockFreeBST::help_successor_node(LFTreeEdge helpee_edge) {
     // Promote flat must be set on the successor node's left edge
     // retrieve the address of the target node
     LFTreeNode *left = GET_LEFT_CHILD(node);
-    RESET_ALL_NODEPTR_FLG(left);
+    RESET_ALL_NODEPTR_FLG(left);  // TODO: do we need to reset here?
 
     // Obtain new state record and initialize it
     StateRecord* state = new StateRecord();
