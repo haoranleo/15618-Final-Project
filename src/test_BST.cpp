@@ -286,7 +286,7 @@ bool TestBST::test_multi_delete_and_tree_validation() {
 
     vector<std::future<bool>> ret(t_num);
     for (int tid = 0; tid < t_num; ++tid) {
-        ret[tid] = std::async(std::launch::async, test_multi_delete_helper_vecor, bst, vecs[tid]);
+        ret[tid] = std::async(std::launch::async, test_multi_delete_helper_vector, bst, vecs[tid]);
     }
     for(int tid = 0; tid < t_num; ++tid) {
         result &= ret[tid].get();

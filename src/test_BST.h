@@ -187,7 +187,7 @@ private:
      * @return : true if all insert tasks complete.
      *           false if any insert tasks fails.
      */
-    static bool test_multi_delete_helper_vecor(BinarySearchTree *bst, vector<int> vec) {
+    static bool test_multi_delete_helper_vector(BinarySearchTree *bst, vector<int> vec) {
         bool result = true;
         for (int element : vec) {
             result &= bst->remove(element);
