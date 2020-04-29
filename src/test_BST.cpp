@@ -31,6 +31,34 @@ bool TestBST::compare(vector<int> vec) {
 }
 
 
+bool TestBST::compare_set(unordered_set<int> st) {
+    LockFreeBST * lf_bst = dynamic_cast<LockFreeBST*> (bst);
+    if (!lf_bst) {
+        cout << "Error: Invalid tree type in compare set" << endl;
+        return false;
+    }
+    vector<LFTreeNode *> node_info = lf_bst->traverse_node_info();
+    if (node_info.size() != st.size()) {
+        cout << "Error: Tree size mismatch" << endl;
+        return false;
+    }
+    for (LFTreeNode * node : node_info) {
+        if (GET_INTENT_FLG(node) || GET_PROMOTE_FLG(node) || GET_DELETE_FLG(node)) {
+            cout << "Error: Node flag incorrect" << endl;
+            return false;
+        }
+        int cur_key = GET_KEY_VAL(node);
+        if (st.find(cur_key) == st.end()) {  // NOT found
+            cout << "Error: Incorrect value" << endl;
+            return false;
+        }
+        st.erase(cur_key);
+    }
+    return true;
+
+}
+
+
 void TestBST::test_all(unsigned int thread_num, unsigned int ops_num) {
     cout << "Now running against single thread tests..." << endl;
     test_all_basic();
@@ -60,8 +88,8 @@ void TestBST::test_all_basic() {
     printResult("TEST_DELETE_2", test_delete_2());
     printResult("TEST_DELETE_3", test_delete_3());
     printResult("TEST_DELETE_4", test_delete_4());
-//    printResult("TEST_COMBO_1", test_combo_1());
-//    printResult("TEST_COMBO_2", test_combo_2());
+    printResult("TEST_COMBO_1", test_combo_1());
+    printResult("TEST_COMBO_2", test_combo_2());
 }
 
 
@@ -163,13 +191,17 @@ void TestBST::test_all_multi(unsigned int thread_num, unsigned int ops_num) {
     this->thread_num = thread_num;
     this->ops_num = ops_num;
     unsigned int total_ops = thread_num * ops_num;
-    v2.resize(total_ops);
+    v2.resize(total_ops, 0);
     for(int i = 0; i < total_ops; ++i) {
         v2[i] = i;
     }
     printResult("TEST_MULTI_SEARCH", test_multi_search());
     printResult("TEST_MULTI_INSERT", test_multi_insert());
     printResult("TEST_MULTI_DELETE", test_multi_delete());
+
+    // Test with validation
+    printResult("TEST_MULTI_INSERT_AND_TREE_VALIDATION", test_multi_insert_and_tree_validation());
+    printResult("TEST_MULTI_DELETE_AND_TREE_VALIDATION", test_multi_delete_and_tree_validation());
 }
 
 
@@ -212,4 +244,54 @@ bool TestBST::test_multi_delete() {
         result &= ret[tid].get();
     }
     return result;
+}
+
+
+bool TestBST::test_multi_insert_and_tree_validation() {
+    // Make min(thread_num, v1.size() to be the actual thread number)
+    int t_num = thread_num > v1.size() ? v1.size() : thread_num;
+    bool result = true;
+    vector<vector<int>> vecs(t_num);
+    for (int i = 0; i < v1.size(); ++i) {
+        vecs[i%t_num].push_back(v1[i]);
+    }
+
+    vector<std::future<bool>> ret(t_num);
+    for (int tid = 0; tid < t_num; ++tid) {
+        ret[tid] = std::async(std::launch::async, test_multi_insert_helper_vector, bst, vecs[tid]);
+    }
+    for(int tid = 0; tid < t_num; ++tid) {
+        result &= ret[tid].get();
+    }
+    if (!result) return false;
+    // compare set
+    unordered_set<int> test_st = st1;
+    return compare_set(test_st);
+}
+
+
+bool TestBST::test_multi_delete_and_tree_validation() {
+    if (!instantiateBST(v1)) return false;
+    unordered_set<int> test_st = st1;
+    int t_num = thread_num > v1.size() ? v1.size() : thread_num;
+    int element_per_thread = v1.size() / t_num;
+    element_per_thread = element_per_thread > 1 ? element_per_thread - 1 : element_per_thread;
+    bool result = true;
+    vector<vector<int>> vecs(t_num);
+
+    for (int i = 0; i < element_per_thread * t_num; ++i) {
+        vecs[i/element_per_thread].push_back(v1[i]);
+        test_st.erase(v1[i]);
+    }
+
+    vector<std::future<bool>> ret(t_num);
+    for (int tid = 0; tid < t_num; ++tid) {
+        ret[tid] = std::async(std::launch::async, test_multi_delete_helper_vecor, bst, vecs[tid]);
+    }
+    for(int tid = 0; tid < t_num; ++tid) {
+        result &= ret[tid].get();
+    }
+    if (!result) return false;
+    // compare set
+    return compare_set(test_st);
 }
