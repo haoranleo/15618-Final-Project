@@ -9,9 +9,11 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 using std::vector;
 using std::string;
+using std::unordered_set;
 using std::cout;
 using std::endl;
 
