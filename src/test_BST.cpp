@@ -194,13 +194,15 @@ void TestBST::test_all_multi(unsigned int thread_num, unsigned int ops_num) {
     v2.resize(total_ops);
     for(int i = 0; i < total_ops; ++i) {
         v2[i] = i;
+        cout << v2[i] << endl;
     }
     printResult("TEST_MULTI_SEARCH", test_multi_search());
     printResult("TEST_MULTI_INSERT", test_multi_insert());
     printResult("TEST_MULTI_DELETE", test_multi_delete());
 
     // Test with validation
-    printResult("TEST_MULTI_INSERT_AND_TREE_VALIDATION", test_multi_insert_and_tree_validation());
+//    printResult("TEST_MULTI_INSERT_AND_TREE_VALIDATION", test_multi_insert_and_tree_validation());
+//    printResult("TEST_MULTI_DELETE_AND_TREE_VALIDATION", test_multi_delete_and_tree_validation());
 }
 
 
@@ -259,15 +261,39 @@ bool TestBST::test_multi_insert_and_tree_validation() {
     for (int tid = 0; tid < t_num; ++tid) {
         ret[tid] = std::async(std::launch::async, test_multi_insert_helper_vector, bst, vecs[tid]);
     }
-    for(int tid = 0; tid < thread_num; ++tid) {
+    for(int tid = 0; tid < t_num; ++tid) {
         result &= ret[tid].get();
     }
     if (!result) return false;
     // compare set
-    return compare_set(st1);
+    unordered_set<int> test_st = st1;
+    return compare_set(test_st);
 }
 
 
 bool TestBST::test_multi_delete_and_tree_validation() {
-    return false;
+    if (!instantiateBST(v1)) return false;
+    unordered_set<int> test_st = st1;
+    int t_num = thread_num > v1.size() ? v1.size() : thread_num;
+    int element_per_thread = v1.size() / t_num;
+    element_per_thread = element_per_thread > 1 ? element_per_thread - 1 : element_per_thread;
+    bool result = true;
+    vector<vector<int>> vecs(t_num);
+
+    for (int i = 0; i < element_per_thread * t_num; ++i) {
+        vecs[i/element_per_thread].push_back(v1[i]);
+        test_st.erase(v1[i]);
+    }
+
+    vector<std::future<bool>> ret(t_num);
+    for (int tid = 0; tid < t_num; ++tid) {
+        ret[tid] = std::async(std::launch::async, test_multi_delete_helper_vecor, bst, vecs[tid]);
+    }
+    for(int tid = 0; tid < t_num; ++tid) {
+        result &= ret[tid].get();
+    }
+    if (!result) return false;
+    // compare set
+    cout << "Set_size: " << test_st.size() << endl;
+    return compare_set(test_st);
 }
