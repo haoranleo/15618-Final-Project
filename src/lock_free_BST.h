@@ -56,6 +56,9 @@ public:
     /* Print detailed information about nodes in the tree */
     void print_info() override;
 
+    /* Traverse the tree and return all node info in a vector */
+    vector<LFTreeNode *> traverse_node_info();
+
 private:
     LFTreeNode *root_r, *root_s, *root_t; // They are all sentinel nodes
 
@@ -74,6 +77,13 @@ private:
      * @param cur : Pointer to the current tree node.
      */
     void print_info_helper(LFTreeNode* cur);
+
+    /* Helper function to traverse the tree and return all node address
+     * and flag in vector
+     * @param cur : Pointer to the current tree node.
+     * @param node_info : Vector to store node info
+     */
+    void traverse_node_info_helper(LFTreeNode *cur, vector<LFTreeNode *> &node_info);
 
     /* Execute the seek phase required for search, insert and remove API.
      * The seek function traverses the tree from the root node until it

@@ -224,6 +224,21 @@ void LockFreeBST::print_info_helper(LFTreeNode* cur) {
 }
 
 
+vector<LFTreeNode *> LockFreeBST::traverse_node_info() {
+    vector<LFTreeNode *> res;
+    traverse_node_info_helper(GET_LEFT_CHILD(root_t), res);
+    return res;
+}
+
+void LockFreeBST::traverse_node_info_helper(LFTreeNode *cur, vector<LFTreeNode *> &node_info) {
+    if(!GET_NODE_ADDR(cur) || GET_NULL_FLG(cur)) return;
+    node_info.emplace_back(cur);
+    traverse_node_info_helper(GET_LEFT_CHILD(cur), node_info);
+    traverse_node_info_helper(GET_RIGHT_CHILD(cur), node_info);
+}
+
+
+
 /******************* Functions called by remove operation *****************/
 void LockFreeBST::inject(StateRecord *state) {
 #if DEBUG
@@ -341,7 +356,7 @@ void LockFreeBST::remove_successor(StateRecord *state) {
     // Ascertain that the seek record for the successor node contains valid information
     LFTreeNode *left_child_addr = GET_LEFT_CHILD(successor_edge.child);
 
-    if (!GET_PROMOTE_FLG(left_child_addr) || (left_child_addr != node)) {
+    if (!GET_PROMOTE_FLG(left_child_addr) || (GET_NODE_ADDR(left_child_addr) != node)) {
         node->ready_to_replace = true;
         update_mode(state);
         return;
