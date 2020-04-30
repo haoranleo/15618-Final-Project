@@ -4,17 +4,69 @@
 
 #include "benchmark.h"
 
-bool Benchmark::initBST() {
-    vector<int> v;
-    for(int i = 0; i < init_tree_size; ++i) {
-        v.emplace_back(init_gap * i);
-    }
-    shuffle(v.begin(), v.end(), std::default_random_engine(0)); // Shuffle in pseudo-random style
-    return instantiateBST(v);
+void Benchmark::run_fine_grained_BST(unsigned int size, unsigned int thread_num) {
+    cout << "=========Run experiments using fine grained BST========" << endl;
+    init_tree_size = size;
+    this->thread_num = thread_num;
+    bst = new FineGrainedBST();
+    init_BST_elements();
+    run_benchmark();
 }
 
 
-bool Benchmark::instantiateBST(vector<int> v) {
+void Benchmark::run_lock_free_BST(unsigned int size, unsigned int thread_num) {
+    cout << "=========Run experiments using lock free BST========" << endl;
+    init_tree_size = size;
+    this->thread_num = thread_num;
+    bst = new LockFreeBST();
+    init_BST_elements();
+    run_benchmark();
+}
+
+
+void Benchmark::run_benchmark() {
+    cout << "****** Read-only experiments ******" << endl;
+    // Read-only experiments
+    float content_factor_gap = 0.2;
+    for(int eid = 0; eid <= 5; ++eid) {
+        float content_factor = eid * content_factor_gap;
+        if(!instantiate_BST(tree_elements)) return;
+        test_all_read(content_factor);
+    }
+
+    cout << "****** Insert-only experiments ******" << endl;
+    // Insert-only experiments
+    for(int eid = 0; eid <= 5; ++eid) {
+        float content_factor = eid * content_factor_gap;
+        if(!instantiate_BST({})) return;
+        test_all_insert(content_factor);
+    }
+
+    cout << "****** Delete-only experiments ******" << endl;
+    // Delete-only experiments
+    for(int eid = 0; eid <= 5; ++eid) {
+        float content_factor = eid * content_factor_gap;
+        if(!instantiate_BST(tree_elements)) return;
+        test_all_delete(content_factor);
+    }
+
+    cout << "****** Random instruction experiments ******" << endl;
+    // Random operations experiments
+    for(int eid = 0; eid <= 5; ++eid) {
+        float content_factor = eid * content_factor_gap;
+        if(!instantiate_BST(tree_elements)) return;
+        test_all_random(content_factor);
+    }
+}
+
+void Benchmark::init_BST_elements() {
+    if(!tree_elements.empty()) return;
+    for(int i = 0; i < init_tree_size; ++i) tree_elements.emplace_back(i);
+    shuffle(tree_elements.begin(), tree_elements.end(), std::default_random_engine(0)); // Shuffle in pseudo-random style
+}
+
+
+bool Benchmark::instantiate_BST(vector<int> v) {
     bst->reinitialize();
     for(int element : v) {
         if(!bst->insert(element)) return false;
@@ -23,26 +75,116 @@ bool Benchmark::instantiateBST(vector<int> v) {
 }
 
 
+void Benchmark::assign_test_numbers(vector<int> &test_numbers, int tid, float content_factor) {
+    int num_per_thread = init_tree_size / thread_num;
+    int chunk_size = num_per_thread - int((num_per_thread - 1) * content_factor);
+
+    for(int cid = 0; cid * chunk_size < init_tree_size; ++cid) {
+        int start = cid * chunk_size * thread_num + chunk_size * tid;
+        int end = start + chunk_size;
+        for(int i = start; i < end; ++i) {
+            test_numbers.emplace_back(i);
+            if(test_numbers.size() >= num_per_thread) return;
+        }
+    }
+}
+
+
 void Benchmark::test_all_read(float content_factor) {
-    // TODO: add timer
-
     // Collection of worker thread
-    vector<thread> threads;
+    vector<thread> threads(thread_num);
 
-    // Random number generator
-    std::default_random_engine generator;
-    std::uniform_int_distribution<int> distribution(0, init_tree_size - 1);
-    auto dice = std::bind(distribution, generator);
+    // Assign target numbers for different thread
+    vector<vector<int>> test_numbers(thread_num, vector<int>());
+    for(int tid = 0; tid < thread_num; ++tid) {
+        assign_test_numbers(test_numbers[tid], tid, content_factor);
+    }
+
+    double start_time = currentSeconds();
 
     // Spawn threads to execute read workload
     for(int tid = 0; tid < thread_num; ++tid) {
-        vector<int> test_numbers;
-        for(int i = 0; i < ops_num; ++i) {
-            test_numbers.emplace_back(dice() * init_gap);
-        }
-        thread t(thread_search, bst, test_numbers);
-        threads.emplace_back(t);
+        threads[tid] = thread(thread_search, bst, test_numbers[tid]);
+//        threads.emplace_back(t);
+    }
+    for(int tid = 0; tid < thread_num; ++tid) threads[tid].join();
+
+    // Record elapsed time
+    double end_time = currentSeconds();
+    cout << "Content factor: " << content_factor << " | Elapsed time: " << end_time - start_time << " s" << endl;
+}
+
+
+void Benchmark::test_all_insert(float content_factor) {
+    // Collection of worker thread
+    vector<thread> threads(thread_num);
+
+    // Assign target numbers for different thread
+    vector<vector<int>> test_numbers(thread_num, vector<int>());
+    for(int tid = 0; tid < thread_num; ++tid) {
+        assign_test_numbers(test_numbers[tid], tid, content_factor);
     }
 
+    double start_time = currentSeconds();
+
+    // Spawn threads to execute read workload
+    for(int tid = 0; tid < thread_num; ++tid) {
+        threads[tid] = thread(thread_insert, bst, test_numbers[tid]);
+//        threads.emplace_back(t);
+    }
     for(int tid = 0; tid < thread_num; ++tid) threads[tid].join();
+
+    // Record elapsed time
+    double end_time = currentSeconds();
+    cout << "Content factor: " << content_factor << " | Elapsed time: " << end_time - start_time << " s" << endl;
+}
+
+
+void Benchmark::test_all_delete(float content_factor) {
+    // Collection of worker thread
+    vector<thread> threads(thread_num);
+
+    // Assign target numbers for different thread
+    vector<vector<int>> test_numbers(thread_num, vector<int>());
+    for(int tid = 0; tid < thread_num; ++tid) {
+        assign_test_numbers(test_numbers[tid], tid, content_factor);
+    }
+
+    double start_time = currentSeconds();
+
+    // Spawn threads to execute read workload
+    for(int tid = 0; tid < thread_num; ++tid) {
+        threads[tid] =  thread(thread_delete, bst, test_numbers[tid]);
+//        threads.emplace_back(t);
+    }
+    for(int tid = 0; tid < thread_num; ++tid) threads[tid].join();
+
+    // Record elapsed time
+    double end_time = currentSeconds();
+    cout << "Content factor: " << content_factor << " | Elapsed time: " << end_time - start_time << " s" << endl;
+}
+
+
+void Benchmark::test_all_random(float content_factor) {
+    // Collection of worker thread
+    vector<thread> threads(thread_num);
+
+    // Assign target numbers for different thread
+    vector<vector<int>> test_numbers(thread_num, vector<int>());
+    for(int tid = 0; tid < thread_num; ++tid) {
+        assign_test_numbers(test_numbers[tid], tid, content_factor);
+    }
+
+    double start_time = currentSeconds();
+
+    // Spawn threads to execute read workload
+    for(int tid = 0; tid < thread_num; ++tid) {
+        threads[tid] = thread(thread_random, bst, test_numbers[tid]);
+//        threads.emplace_back(t);
+    }
+    for(int tid = 0; tid < thread_num; ++tid) threads[tid].join();
+
+    // Record elapsed time
+    double end_time = currentSeconds();
+    cout << "Content factor: " << content_factor << " | Elapsed time: " << end_time - start_time << " s" << endl;
 }
