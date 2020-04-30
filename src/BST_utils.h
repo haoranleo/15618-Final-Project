@@ -124,21 +124,6 @@ public:
         left = nullptr; right = nullptr;
     }
 
-//    // Structure for key in lock free BST node
-//    struct LFNodeKey {
-//        LFNodeKey() = default;
-//        int value;  // Actual value of key
-//    };
-//
-//    struct LFNodeChild {
-//        LFNodeChild(): child(nullptr), padding(nullptr) {}
-//        explicit LFNodeChild(LFTreeNode* node): child(node), padding(nullptr) {}
-//        ~LFNodeChild() { child = nullptr; }     // Child should have been deleted in previous recursive destroy process
-//
-//        LFTreeNode *child;
-//        const void* padding;      // Used to ensure that the address of any LFNodeChild won't use the lowest four bits
-//    };
-
     // Data in tree node
     int* key;
     LFTreeNode* left;
