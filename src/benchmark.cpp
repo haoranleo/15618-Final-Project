@@ -4,6 +4,16 @@
 
 #include "benchmark.h"
 
+void Benchmark::run_coarse_grained_BST(unsigned int size, unsigned int thread_num) {
+    cout << "=========Run experiments using coarse grained BST========" << endl;
+    init_tree_size = size;
+    this->thread_num = thread_num;
+    bst = new CoarseGrainedBST();
+    init_BST_elements();
+    run_benchmark();
+}
+
+
 void Benchmark::run_fine_grained_BST(unsigned int size, unsigned int thread_num) {
     cout << "=========Run experiments using fine grained BST========" << endl;
     init_tree_size = size;

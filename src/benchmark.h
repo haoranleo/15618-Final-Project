@@ -11,6 +11,7 @@
 #include <thread>
 
 #include "cycletimer.h"
+#include "coarse_grained_BST.h"
 #include "fine_grained_BST.h"
 #include "lock_free_BST.h"
 
@@ -21,13 +22,14 @@ public:
     explicit Benchmark(int size): init_tree_size(size), bst(nullptr) {}
     ~Benchmark() {
         if(!bst) return;
-        FineGrainedBST* fg_bst = dynamic_cast<FineGrainedBST*> (bst);
-        if(fg_bst) delete fg_bst;
-        else {
-            LockFreeBST* lf_bst = dynamic_cast<LockFreeBST*> (bst);
-            delete lf_bst;
-        }
+        delete bst;
     }
+
+    /* Entry function to run all the experiments in benchmark using coarse grained BST.
+     * @param size : Initial size of the tree.
+     * @param thread_num : Number of threads to run.
+     */
+    void run_coarse_grained_BST(unsigned int size, unsigned int thread_num);
 
     /* Entry function to run all the experiments in benchmark using fine grained BST.
      * @param size : Initial size of the tree.
