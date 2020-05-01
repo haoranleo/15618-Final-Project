@@ -4,6 +4,12 @@
 
 #include "test_BST.h"
 
+void TestBST::test_coarse_grained_BST(unsigned int thread_num, unsigned int ops_num) {
+    bst = new CoarseGrainedBST();
+    test_all(thread_num, ops_num);
+}
+
+
 void TestBST::test_fine_grained_BST(unsigned int thread_num, unsigned int ops_num) {
     bst = new FineGrainedBST();
     test_all(thread_num, ops_num);
@@ -147,7 +153,7 @@ bool TestBST::test_delete_2() {
 bool TestBST::test_delete_3() {
     if(!instantiateBST(v1)) return false;
     if(!bst->remove(12)) return false;
-    if(dynamic_cast<FineGrainedBST*> (bst)) return compare({16, 7, 5, 11, 8, 13, 15, 14, 33, 32, 36, 34, 88, 55, 56});
+    if(!dynamic_cast<LockFreeBST*> (bst)) return compare({16, 7, 5, 11, 8, 13, 15, 14, 33, 32, 36, 34, 88, 55, 56});
     else return compare({16, 13, 7, 5, 11, 8, 15, 14, 33, 32, 36, 34, 88, 55, 56});
 }
 
@@ -155,7 +161,7 @@ bool TestBST::test_delete_3() {
 bool TestBST::test_delete_4() {
     if(!instantiateBST(v1)) return false;
     if(!bst->remove(16)) return false;
-    if(dynamic_cast<FineGrainedBST*> (bst)) return compare({12, 7, 5, 11, 8, 13, 15, 14, 33, 32, 36, 34, 88, 55, 56});
+    if(!dynamic_cast<LockFreeBST*> (bst)) return compare({12, 7, 5, 11, 8, 13, 15, 14, 33, 32, 36, 34, 88, 55, 56});
     else return compare({32, 12, 7, 5, 11, 8, 13, 15, 14, 33, 36, 34, 88, 55, 56});
 }
 
@@ -199,9 +205,11 @@ void TestBST::test_all_multi(unsigned int thread_num, unsigned int ops_num) {
     printResult("TEST_MULTI_INSERT", test_multi_insert());
     printResult("TEST_MULTI_DELETE", test_multi_delete());
 
-    // Test with validation
-    printResult("TEST_MULTI_INSERT_AND_TREE_VALIDATION", test_multi_insert_and_tree_validation());
-    printResult("TEST_MULTI_DELETE_AND_TREE_VALIDATION", test_multi_delete_and_tree_validation());
+    // Test with validation only when using lock-free BST
+    if(dynamic_cast<LockFreeBST*> (bst)) {
+        printResult("TEST_MULTI_INSERT_AND_TREE_VALIDATION", test_multi_insert_and_tree_validation());
+        printResult("TEST_MULTI_DELETE_AND_TREE_VALIDATION", test_multi_delete_and_tree_validation());
+    }
 }
 
 

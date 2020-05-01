@@ -8,6 +8,7 @@
 #include <future>
 #include <unordered_set>
 #include <thread>
+#include "coarse_grained_BST.h"
 #include "fine_grained_BST.h"
 #include "lock_free_BST.h"
 
@@ -28,6 +29,12 @@ public:
     ~TestBST() {
         delete bst;
     }
+
+    /* Run tests for BST with coarse-grained locking
+     * @param thread_num : Number of threads to spawn during the test.
+     * @param ops_num : Number of operations each thread should do.
+     */
+    void test_coarse_grained_BST(unsigned int thread_num, unsigned int ops_num);
 
     /* Run tests for BST with fine-grained locking
      * @param thread_num : Number of threads to spawn during the test.
