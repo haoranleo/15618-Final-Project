@@ -36,7 +36,7 @@ private:
     std::atomic_flag lock_flg = ATOMIC_FLAG_INIT;
 };
 
-// Structure of the basic node inside BST
+// Structure of the basic node inside fine-grained BST
 class TreeNode {
 public:
     TreeNode(int v): val(v), left(nullptr), right(nullptr) {
@@ -52,6 +52,15 @@ public:
     Spinlock* lock;     // Sping lock
 };
 
+// Structure of the basic node inside coarse-grained BST
+class Node {
+public:
+    explicit Node(int v): val(v), left(nullptr), right(nullptr) {}
+    ~Node() { left = nullptr; right = nullptr; }
+    int val;
+    Node* left;
+    Node* right;
+};
 
 /********** Structures used in lock free BST *************/
 
