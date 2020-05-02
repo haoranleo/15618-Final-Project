@@ -71,8 +71,26 @@ void Benchmark::run_benchmark() {
 
 void Benchmark::init_BST_elements() {
     if(!tree_elements.empty()) return;
-    for(int i = 0; i < init_tree_size; ++i) tree_elements.emplace_back(i);
-    shuffle(tree_elements.begin(), tree_elements.end(), std::default_random_engine(0)); // Shuffle in pseudo-random style
+
+//    for(int i = 0; i < init_tree_size; ++i) tree_elements.emplace_back(i);
+//    shuffle(tree_elements.begin(), tree_elements.end(), std::default_random_engine(0)); // Shuffle in pseudo-random style
+
+    generate_balanced_tree_elements(tree_elements, 0, init_tree_size);
+
+//    for(int i : tree_elements) cout << i << " ";
+//    cout << endl;
+}
+
+
+void Benchmark::generate_balanced_tree_elements(vector<int> &v, int start, int end) {
+    if(start >= end) return;
+    else if(start == end - 1) v.emplace_back(start);
+    else {
+        int mid = start + (end - start) / 2;
+        v.emplace_back(mid);
+        generate_balanced_tree_elements(v, start, mid);
+        generate_balanced_tree_elements(v, mid + 1, end);
+    }
 }
 
 
@@ -94,7 +112,10 @@ void Benchmark::assign_test_numbers(vector<int> &test_numbers, int tid, float co
         int end = start + chunk_size;
         for(int i = start; i < end; ++i) {
             test_numbers.emplace_back(i);
-            if(test_numbers.size() >= num_per_thread) return;
+            if(test_numbers.size() >= num_per_thread) {
+                shuffle(test_numbers.begin(), test_numbers.end(), engine);
+                return;
+            }
         }
     }
 }
@@ -189,7 +210,7 @@ void Benchmark::test_all_random(float content_factor) {
 
     // Spawn threads to execute read workload
     for(int tid = 0; tid < thread_num; ++tid) {
-        threads[tid] = thread(thread_random, bst, test_numbers[tid]);
+        threads[tid] = thread(thread_random, bst, test_numbers[tid], tid);
 //        threads.emplace_back(t);
     }
     for(int tid = 0; tid < thread_num; ++tid) threads[tid].join();

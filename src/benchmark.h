@@ -50,11 +50,19 @@ private:
     int init_gap = 10;
     unsigned int thread_num = 4;
     int ops_num = 10;
+    std::default_random_engine engine;
 
     /* Initialize and propagate underlying BST to specified size and
      * store all elements into a vector to be used in future experiments.
      */
     void init_BST_elements();
+
+    /* Generate balanced BST and store all elements in vector in pre-traversal order.
+     * @param v : Vector containing elements in tree.
+     * @param start : Left limit of current range.
+     * @param end : right limit of current range.
+     */
+    void generate_balanced_tree_elements(vector<int>& v, int start, int end);
 
     /* Construct new BST from scratch by inserting element in
      * the input vector in order.
@@ -139,8 +147,9 @@ private:
     /* Thread routine. Single thread completes multiple operations randomly.
      * @param bst : Pointer to underlying binary search tree object.
      * @param test_numbers : Vector containing numbers to be used.
+     * @param tid : Thread id.
      */
-    static void thread_random(BinarySearchTree* bst, vector<int> test_numbers) {
+    static void thread_random(BinarySearchTree* bst, vector<int> test_numbers, unsigned int tid) {
         // Random number generator
         std::default_random_engine generator;
         std::uniform_int_distribution<int> distribution(0, 2);
