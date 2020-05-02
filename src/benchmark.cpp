@@ -142,7 +142,7 @@ void Benchmark::test_all_read(float content_factor) {
 
     // Record elapsed time
     double end_time = currentSeconds();
-    cout << "Content factor: " << content_factor << " | Elapsed time: " << end_time - start_time << " s" << endl;
+    cout << "Content factor: " << content_factor << " | Elapsed time: " << (end_time - start_time) * 1000 << " ms" << endl;
 }
 
 
@@ -167,7 +167,7 @@ void Benchmark::test_all_insert(float content_factor) {
 
     // Record elapsed time
     double end_time = currentSeconds();
-    cout << "Content factor: " << content_factor << " | Elapsed time: " << end_time - start_time << " s" << endl;
+    cout << "Content factor: " << content_factor << " | Elapsed time: " << (end_time - start_time) * 1000 << " ms" << endl;
 }
 
 
@@ -192,7 +192,7 @@ void Benchmark::test_all_delete(float content_factor) {
 
     // Record elapsed time
     double end_time = currentSeconds();
-    cout << "Content factor: " << content_factor << " | Elapsed time: " << end_time - start_time << " s" << endl;
+    cout << "Content factor: " << content_factor << " | Elapsed time: " << (end_time - start_time) * 1000 << " ms" << endl;
 }
 
 
@@ -217,5 +217,5 @@ void Benchmark::test_all_random(float content_factor) {
 
     // Record elapsed time
     double end_time = currentSeconds();
-    cout << "Content factor: " << content_factor << " | Elapsed time: " << end_time - start_time << " s" << endl;
+    cout << "Content factor: " << content_factor << " | Elapsed time: " << (end_time - start_time) * 1000 << " ms" << endl;
 }
