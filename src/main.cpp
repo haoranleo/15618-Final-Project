@@ -70,6 +70,8 @@ int processArgs(int argc, char **argv, int *mode, int *thread_num, int *size) {
     string mode_name;
 
     if (argc != 2 && argc != 7) {
+        cout << "***Incorrect parameter format! Please refer to the usage.***" << endl;
+        cout << endl;
         usage(argv[0]);
         return 1;
     }
@@ -99,14 +101,24 @@ int processArgs(int argc, char **argv, int *mode, int *thread_num, int *size) {
                 break;
             case 't':
                 *thread_num = std::stoi(optarg);
+                if(*thread_num <= 0) {
+                    cout << "Illegal parameter for the number of threads! Number of threads should be at least 1." << endl;
+                    return 1;
+                }
                 break;
             case 's':
                 *size = std::stoi(optarg);
+                if(*size < 0) {
+                    cout << "Illegal parameter for the initial BST size! Initial BST size should be at least 0." << endl;
+                    return 1;
+                }
                 break;
             case 'h':
                 usage(argv[0]);
                 return 1;
             default:
+                cout << "***Unrecognized type of parameter! Please refer to the usage.***" << endl;
+                cout << endl;
                 usage(argv[0]);
                 return 1;
         }
