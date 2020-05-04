@@ -72,10 +72,10 @@ void Benchmark::run_benchmark() {
 void Benchmark::init_BST_elements() {
     if(!tree_elements.empty()) return;
 
-//    for(int i = 0; i < init_tree_size; ++i) tree_elements.emplace_back(i);
+    for(int i = 0; i < init_tree_size; ++i) tree_elements.emplace_back(i);
 //    shuffle(tree_elements.begin(), tree_elements.end(), std::default_random_engine(0)); // Shuffle in pseudo-random style
 
-    generate_balanced_tree_elements(tree_elements, 0, init_tree_size);
+//    generate_balanced_tree_elements(tree_elements, 0, init_tree_size);
 
 //    for(int i : tree_elements) cout << i << " ";
 //    cout << endl;
